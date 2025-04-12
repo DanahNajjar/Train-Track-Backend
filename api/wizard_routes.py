@@ -3,7 +3,7 @@ import mysql.connector
 import base64
 import os
 
-wizard_routes = Blueprint('wizard_routes', __name__, url_prefix='/wizard')
+wizard_routes = Blueprint('wizard_routes', __name__)
 
 # ✅ DB connection for all use cases
 def get_db_connection():
@@ -23,6 +23,7 @@ def upload_category_images_once():
 
 # ✅ Call once when app starts
 upload_category_images_once()
+
 # ✅ Step 1: Get Majors
 @wizard_routes.route('/wizard/majors', methods=['GET'])
 def get_majors():
@@ -35,24 +36,31 @@ def get_majors():
     ]
     return jsonify({ "success": True, "data": majors }), 200
 
+
 # ✅ Step 2: Get Subject Categories (IDs 11–18 Only, With Description & Image)
 @wizard_routes.route('/wizard/subject-categories', methods=['GET'])
 def get_subject_categories():
-    connection = get_db_connection()
-    cursor = connection.cursor(dictionary=True)
-    cursor.execute("""
-        SELECT id, name, description, image_path AS image_url
-        FROM categories
-        WHERE id BETWEEN 11 AND 18
-    """)
-    categories = cursor.fetchall()
-    connection.close()
-    return jsonify({ "success": True, "data": categories }), 200
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT id, name, description, image_path AS image_url
+            FROM categories
+            WHERE id BETWEEN 11 AND 18
+        """)
+        categories = cursor.fetchall()
+        return jsonify({ "success": True, "data": categories }), 200
+    except Exception as e:
+        return jsonify({ "success": False, "error": str(e) }), 500
+    finally:
+        if connection.is_connected():
+            cursor.close()
+            connection.close()
 
 
 # ✅ Step 2.1: Get Subjects by Category IDs (With Category Name)
-    @wizard_routes.route('/subject-categories', methods=['GET'])
-    def get_subject_categories():
+@wizard_routes.route('/wizard/subjects', methods=['GET'])
+def get_subjects_by_categories():
     ids_param = request.args.get('ids')
     if not ids_param:
         return jsonify({ "success": False, "message": "Missing category ids." }), 400
@@ -90,6 +98,7 @@ def get_subject_categories():
         "success": True,
         "data": list(grouped.values())
     }), 200
+
 
 # ✅ Step 3: Technical Skills by Subject Category IDs (Grouped, using category_id)
 @wizard_routes.route('/wizard/technical-skills', methods=['GET'])
