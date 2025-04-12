@@ -1,19 +1,38 @@
-# api/recommendation.py
-
 from flask import Blueprint, request, jsonify
-import mysql.connector
+from api.db import get_db_connection
 
 recommendation_routes = Blueprint('recommendation', __name__)
 
-def get_db_connection():
-    return mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="Traintrack@2025",
-        database="expert_system"
-    )
-
 @recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
-    # ⬇️ Paste your full /recommendations logic here
-    ...
+    data = request.get_json()
+    
+    # Example expected input structure:
+    # {
+    #   "major_id": 1,
+    #   "subjects": [...],
+    #   "technical_skills": [...],
+    #   "non_technical_skills": [...],
+    #   "preferences": {...}
+    # }
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        # ⬇️ Placeholder: replace this with your real recommendation logic
+        cursor.execute("SELECT * FROM positions LIMIT 3")
+        sample_positions = cursor.fetchall()
+
+        connection.close()
+
+        return jsonify({
+            "success": True,
+            "recommendations": sample_positions
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
