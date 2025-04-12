@@ -51,8 +51,8 @@ def get_subject_categories():
 
 
 # ✅ Step 2.1: Get Subjects by Category IDs (With Category Name)
-@wizard_routes.route('/wizard/subjects', methods=['GET'])
-def get_subjects_by_categories():
+    @wizard_routes.route('/subject-categories', methods=['GET'])
+    def get_subject_categories():
     ids_param = request.args.get('ids')
     if not ids_param:
         return jsonify({ "success": False, "message": "Missing category ids." }), 400
