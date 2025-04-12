@@ -7,3 +7,15 @@ services:
     envVars:
       - key: FLASK_ENV
         value: production
+      - key: FLASK_SECRET_KEY
+        value: train_track_secret_key
+      - key: MYSQL_HOST
+        value: shuttle.proxy.rlwy.net
+      - key: MYSQL_PORT
+        value: 59084
+      - key: MYSQL_USER
+        value: root
+      - key: MYSQL_PASSWORD
+        value: ejFywNNFCowuXALqixQkPJjzFpyIVoTN
+      - key: MYSQL_DATABASE
+        value: railway
