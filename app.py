@@ -15,8 +15,8 @@ app = Flask(__name__, static_folder='static')
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "train_track_secret_key")
 CORS(app)
 
-# ✅ REGISTER WITH PREFIX
-app.register_blueprint(wizard_routes, url_prefix='/wizard')
+# ✅ Register blueprints (no extra prefix)
+app.register_blueprint(wizard_routes)
 app.register_blueprint(recommendation_routes)
 
 # Health check
