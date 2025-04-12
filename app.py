@@ -16,8 +16,8 @@ app = Flask(__name__, static_folder='static')
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "train_track_secret_key")
 CORS(app)
 
-# Register all route blueprints
-app.register_blueprint(wizard_routes, url_prefix='/wizard')
+# ✅ Register all route blueprints with proper prefix
+app.register_blueprint(wizard_routes, url_prefix="/wizard")
 app.register_blueprint(recommendation_routes)
 
 # Health check endpoint
@@ -33,4 +33,3 @@ def serve_static(filename):
 # Entry point
 if __name__ == '__main__':
     app.run(debug=True)
-
