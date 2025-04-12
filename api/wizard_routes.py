@@ -15,6 +15,7 @@ def get_db_connection():
         port=int(os.environ.get("DB_PORT", 3306))
     )
 
+
 # ✅ Upload category images once
 def upload_category_images_once():
     connection = get_db_connection()
