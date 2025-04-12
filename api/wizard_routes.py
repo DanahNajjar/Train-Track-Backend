@@ -25,7 +25,7 @@ def upload_category_images_once():
 upload_category_images_once()
 
 # ✅ Step 1: Get Majors
-@wizard_routes.route('/wizard/majors', methods=['GET'])
+@wizard_routes.route('/majors', methods=['GET'])
 def get_majors():
     majors = [
         { "id": 1, "name": "Computer Science Apprenticeship Program" },
@@ -38,7 +38,7 @@ def get_majors():
 
 
 # ✅ Step 2: Get Subject Categories (IDs 11–18 Only, With Description & Image)
-@wizard_routes.route('/wizard/subject-categories', methods=['GET'])
+@wizard_routes.route('/subject-categories', methods=['GET'])
 def get_subject_categories():
     try:
         connection = get_db_connection()
@@ -59,7 +59,7 @@ def get_subject_categories():
 
 
 # ✅ Step 2.1: Get Subjects by Category IDs (With Category Name)
-@wizard_routes.route('/wizard/subjects', methods=['GET'])
+@wizard_routes.route('/subjects', methods=['GET'])
 def get_subjects_by_categories():
     ids_param = request.args.get('ids')
     if not ids_param:
@@ -101,7 +101,7 @@ def get_subjects_by_categories():
 
 
 # ✅ Step 3: Technical Skills by Subject Category IDs (Grouped, using category_id)
-@wizard_routes.route('/wizard/technical-skills', methods=['GET'])
+@wizard_routes.route('/technical-skills', methods=['GET'])
 def get_technical_skills_grouped():
     ids_param = request.args.get('category_ids')
     if not ids_param:
@@ -140,7 +140,7 @@ def get_technical_skills_grouped():
     return jsonify({ "success": True, "data": list(grouped.values()) }), 200
     
 # ✅ Step 4: Get Non-Technical Skills
-@wizard_routes.route('/wizard/non-technical-skills', methods=['GET'])
+@wizard_routes.route('/non-technical-skills', methods=['GET'])
 def get_non_technical_skills():
     try:
         connection = get_db_connection()
@@ -159,7 +159,7 @@ def get_non_technical_skills():
             connection.close()
 
 # ✅ Step 5: Save Advanced Preferences
-@wizard_routes.route('/wizard/preferences', methods=['POST'])
+@wizard_routes.route('/preferences', methods=['POST'])
 def save_advanced_preferences():
     try:
         data = request.get_json()
@@ -198,7 +198,7 @@ def save_advanced_preferences():
         return jsonify({"success": False, "message": str(e)}), 500
 
 # ✅ Step 6: Return Wizard Summary
-@wizard_routes.route('/wizard/summary', methods=['POST'])
+@wizard_routes.route('/summary', methods=['POST'])
 def wizard_summary():
     try:
         data = request.get_json()
