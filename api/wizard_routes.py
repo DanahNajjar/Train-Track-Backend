@@ -1,30 +1,27 @@
 from flask import Blueprint, request, jsonify
 import mysql.connector
 import base64
+import os
 
 wizard_routes = Blueprint('wizard_routes', __name__)
 
+# ✅ DB connection for all use cases
+def get_db_connection():
+    return mysql.connector.connect(
+        host=os.environ.get("DB_HOST"),
+        user=os.environ.get("DB_USER"),
+        password=os.environ.get("DB_PASSWORD"),
+        database=os.environ.get("DB_NAME"),
+        port=int(os.environ.get("DB_PORT", 3306))
+    )
+
 # ✅ Upload category images once
 def upload_category_images_once():
-    db = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="Traintrack@2025",
-        database="expert_system"
-    )
+    connection = get_db_connection()
+    connection.close()
 
 # ✅ Call once when app starts
 upload_category_images_once()
-
-# ✅ DB connection for endpoints
-def get_db_connection():
-    return mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="Traintrack@2025",
-        database="expert_system"
-    )
-
 # ✅ Step 1: Get Majors
 @wizard_routes.route('/wizard/majors', methods=['GET'])
 def get_majors():
