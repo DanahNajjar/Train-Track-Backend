@@ -1,6 +1,6 @@
 # app.py
 
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_cors import CORS
 
 # Import blueprints
@@ -15,11 +15,12 @@ CORS(app)
 app.register_blueprint(wizard_routes)
 app.register_blueprint(recommendation_routes)
 
-if __name__ == '__main__':
-    app.run(debug=True)
-    from flask import send_from_directory
+# Root route for testing
+@app.route('/')
+def home():
+    return "Train Track Backend is Running!"
 
+# Serve static files
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     return send_from_directory('static', filename)
-
