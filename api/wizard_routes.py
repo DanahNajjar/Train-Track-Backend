@@ -3,7 +3,7 @@ import mysql.connector
 import base64
 import os
 
-wizard_routes = Blueprint('wizard_routes', __name__)
+wizard_routes = Blueprint('wizard_routes', __name__, url_prefix='/wizard')
 
 # ✅ DB connection for all use cases
 def get_db_connection():
