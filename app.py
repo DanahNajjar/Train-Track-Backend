@@ -10,25 +10,27 @@ load_dotenv()
 from api.wizard_routes import wizard_routes
 from api.recommendation import recommendation_routes
 
-# Create Flask app
 app = Flask(__name__, static_folder='static')
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "train_track_secret_key")
 CORS(app)
 
-# ✅ Register blueprints (no extra prefix)
+# ✅ register wizard routes with /wizard prefix
 app.register_blueprint(wizard_routes, url_prefix='/wizard')
 app.register_blueprint(recommendation_routes)
 
-# Health check
 @app.route('/')
 def home():
     return "✅ Train Track Backend is Running!"
 
-# Serve static assets
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     return send_from_directory(app.static_folder, filename)
 
-# Local dev
 if __name__ == '__main__':
     app.run(debug=True)
+    
+@app.route('/test')
+def test():
+    return "✅ /test route is working!"
+
+
