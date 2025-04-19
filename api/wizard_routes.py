@@ -2,6 +2,8 @@ from flask import Blueprint, request, jsonify
 import mysql.connector
 import base64
 import os
+from collections import OrderedDict
+
 
 wizard_routes = Blueprint('wizard_routes', __name__)
 
@@ -282,24 +284,15 @@ def user_input_summary():
         # ✅ Step 5: Preferences
         final_preferences = preferences if preferences else {}
 
-        # ✅ Step 6: Build Ordered Output
-       from collections import OrderedDict
-
-# ✅ Force the order with OrderedDict
-user_info = OrderedDict()
-user_info["full_name"] = full_name
-user_info["gender"] = gender
-user_info["major"] = major_name
-user_info["subjects"] = subject_names_by_cat
-user_info["technical_skills"] = tech_skills_by_cat
-user_info["non_technical_skills"] = non_tech_names
-user_info["preferences"] = final_preferences
-
-return jsonify({
-    "success": True,
-    "user_info": user_info
-}), 200
-
+        # ✅ Step 6: Build Ordered Output with OrderedDict
+        user_info = OrderedDict()
+        user_info["full_name"] = full_name
+        user_info["gender"] = gender
+        user_info["major"] = major_name
+        user_info["subjects"] = subject_names_by_cat
+        user_info["technical_skills"] = tech_skills_by_cat
+        user_info["non_technical_skills"] = non_tech_names
+        user_info["preferences"] = final_preferences
 
         return jsonify({
             "success": True,
