@@ -197,7 +197,7 @@ def save_advanced_preferences():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
-# ✅ Step 6: Return Wizard Summary
+# ✅ Step 6: Return Wizard Summary (Organized by Wizard Flow)
 @wizard_routes.route('/user-input-summary', methods=['POST'])
 def user_input_summary():
     try:
@@ -213,11 +213,12 @@ def user_input_summary():
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
+        # ✅ Get Major Name
         cursor.execute("SELECT name FROM prerequisites WHERE id = %s AND type = 'Major'", (major_id,))
         major_row = cursor.fetchone()
         major_name = major_row['name'] if major_row else None
 
-        # Group Subjects
+        # ✅ Step 2: Get Selected Subjects (Grouped by Category)
         subject_names_by_cat = []
         if subject_ids:
             format_strings = ','.join(['%s'] * len(subject_ids))
@@ -241,7 +242,7 @@ def user_input_summary():
                 grouped_subjects[cat_id]["subjects"].append({"id": row["id"], "name": row["name"]})
             subject_names_by_cat = list(grouped_subjects.values())
 
-        # Group Technical Skills
+        # ✅ Step 3: Get Technical Skills (Grouped by Category)
         tech_skills_by_cat = []
         if technical_skill_ids:
             format_strings = ','.join(['%s'] * len(technical_skill_ids))
@@ -267,7 +268,7 @@ def user_input_summary():
                     grouped_skills[cat_id]["skills"].append({"id": row["id"], "name": row["name"]})
             tech_skills_by_cat = list(grouped_skills.values())
 
-        # Get Non-Technical Skills
+        # ✅ Step 4: Get Non-Technical Skills
         non_tech_names = []
         if non_technical_skill_ids:
             format_strings = ','.join(['%s'] * len(non_technical_skill_ids))
@@ -278,6 +279,10 @@ def user_input_summary():
             cursor.execute(query, tuple(non_technical_skill_ids))
             non_tech_names = [row['name'] for row in cursor.fetchall()]
 
+        # ✅ Step 5: Preferences (Advanced, if provided)
+        final_preferences = preferences if preferences else {}
+
+        # ✅ Final Output: Ordered by Wizard Steps
         return jsonify({
             "success": True,
             "user_info": {
@@ -287,12 +292,13 @@ def user_input_summary():
                 "subjects": subject_names_by_cat,
                 "technical_skills": tech_skills_by_cat,
                 "non_technical_skills": non_tech_names,
-                "preferences": preferences or {}
+                "preferences": final_preferences
             }
         }), 200
 
     except Exception as e:
         return jsonify({ "success": False, "message": str(e) }), 500
+
     finally:
         if connection.is_connected():
             connection.close()
