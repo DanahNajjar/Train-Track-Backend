@@ -46,20 +46,33 @@ def get_subject_categories():
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
         cursor.execute("""
-            SELECT id, name, description, image_path AS image_url
+            SELECT id, name, description
             FROM categories
             WHERE id BETWEEN 11 AND 18
         """)
-        categories = cursor.fetchall()
+        rows = cursor.fetchall()
+
+        categories = []
+        for row in rows:
+            # Build static path
+            static_path = f"/static/categories/{row['id']}.png"
+            categories.append({
+                "id": row["id"],
+                "name": row["name"],
+                "description": row["description"],
+                "image_url": static_path
+            })
+
         return jsonify({ "success": True, "data": categories }), 200
+
     except Exception as e:
         return jsonify({ "success": False, "error": str(e) }), 500
+
     finally:
         if connection.is_connected():
             cursor.close()
             connection.close()
-
-
+            
 # ✅ Step 2.1: Get Subjects by Category IDs (With Category Name)
 @wizard_routes.route('/subjects', methods=['GET'])
 def get_subjects_by_categories():
