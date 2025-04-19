@@ -198,8 +198,8 @@ def save_advanced_preferences():
         return jsonify({"success": False, "message": str(e)}), 500
 
 # ✅ Step 6: Return Wizard Summary
-@wizard_routes.route('/summary', methods=['POST'])
-def wizard_summary():
+@wizard_routes.route('/user-input-summary', methods=['POST'])
+def user_input_summary():
     try:
         data = request.get_json()
         full_name = data.get("full_name")
@@ -217,6 +217,7 @@ def wizard_summary():
         major_row = cursor.fetchone()
         major_name = major_row['name'] if major_row else None
 
+        # Group Subjects
         subject_names_by_cat = []
         if subject_ids:
             format_strings = ','.join(['%s'] * len(subject_ids))
@@ -240,6 +241,7 @@ def wizard_summary():
                 grouped_subjects[cat_id]["subjects"].append({"id": row["id"], "name": row["name"]})
             subject_names_by_cat = list(grouped_subjects.values())
 
+        # Group Technical Skills
         tech_skills_by_cat = []
         if technical_skill_ids:
             format_strings = ','.join(['%s'] * len(technical_skill_ids))
@@ -265,6 +267,7 @@ def wizard_summary():
                     grouped_skills[cat_id]["skills"].append({"id": row["id"], "name": row["name"]})
             tech_skills_by_cat = list(grouped_skills.values())
 
+        # Get Non-Technical Skills
         non_tech_names = []
         if non_technical_skill_ids:
             format_strings = ','.join(['%s'] * len(non_technical_skill_ids))
@@ -277,7 +280,7 @@ def wizard_summary():
 
         return jsonify({
             "success": True,
-            "summary": {
+            "user_info": {
                 "full_name": full_name,
                 "gender": gender,
                 "major": major_name,
@@ -289,7 +292,7 @@ def wizard_summary():
         }), 200
 
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        return jsonify({ "success": False, "message": str(e) }), 500
     finally:
         if connection.is_connected():
             connection.close()
