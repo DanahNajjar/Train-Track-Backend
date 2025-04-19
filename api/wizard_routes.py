@@ -282,18 +282,19 @@ def user_input_summary():
         # ✅ Step 5: Preferences
         final_preferences = preferences if preferences else {}
 
-        # ✅ Return JSON
+        # ✅ Step 6: Build Ordered Output
+        user_info = {}
+        user_info["full_name"] = full_name
+        user_info["gender"] = gender
+        user_info["major"] = major_name
+        user_info["subjects"] = subject_names_by_cat
+        user_info["technical_skills"] = tech_skills_by_cat
+        user_info["non_technical_skills"] = non_tech_names
+        user_info["preferences"] = final_preferences
+
         return jsonify({
             "success": True,
-            "user_info": {
-                "full_name": full_name,
-                "gender": gender,
-                "major": major_name,
-                "subjects": subject_names_by_cat,
-                "technical_skills": tech_skills_by_cat,
-                "non_technical_skills": non_tech_names,
-                "preferences": final_preferences
-            }
+            "user_info": user_info
         }), 200
 
     except Exception as e:
