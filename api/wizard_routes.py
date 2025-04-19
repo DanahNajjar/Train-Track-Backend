@@ -199,7 +199,7 @@ def save_advanced_preferences():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
-# ✅ Step 6: Return Wizard Summary (Organized by Wizard Flow)
+# ✅ Step 6: Return Wizard Summary (Ordered by Wizard Flow)
 @wizard_routes.route('/user-input-summary', methods=['POST'])
 def user_input_summary():
     try:
@@ -220,7 +220,7 @@ def user_input_summary():
         major_row = cursor.fetchone()
         major_name = major_row['name'] if major_row else None
 
-        # ✅ Step 2: Get Subjects
+        # ✅ Step 2: Get Subjects (Grouped by Category)
         subject_names_by_cat = []
         if subject_ids:
             format_strings = ','.join(['%s'] * len(subject_ids))
@@ -241,10 +241,13 @@ def user_input_summary():
                         "category_name": row['category_name'],
                         "subjects": []
                     }
-                grouped_subjects[cat_id]["subjects"].append({"id": row["id"], "name": row["name"]})
+                grouped_subjects[cat_id]["subjects"].append({
+                    "id": row["id"],
+                    "name": row["name"]
+                })
             subject_names_by_cat = list(grouped_subjects.values())
 
-        # ✅ Step 3: Technical Skills
+        # ✅ Step 3: Get Technical Skills (Grouped by Category)
         tech_skills_by_cat = []
         if technical_skill_ids:
             format_strings = ','.join(['%s'] * len(technical_skill_ids))
@@ -267,10 +270,13 @@ def user_input_summary():
                         "skills": []
                     }
                 if not any(s["id"] == row["id"] for s in grouped_skills[cat_id]["skills"]):
-                    grouped_skills[cat_id]["skills"].append({"id": row["id"], "name": row["name"]})
+                    grouped_skills[cat_id]["skills"].append({
+                        "id": row["id"],
+                        "name": row["name"]
+                    })
             tech_skills_by_cat = list(grouped_skills.values())
 
-        # ✅ Step 4: Non-Technical Skills
+        # ✅ Step 4: Get Non-Technical Skills
         non_tech_names = []
         if non_technical_skill_ids:
             format_strings = ','.join(['%s'] * len(non_technical_skill_ids))
@@ -293,6 +299,9 @@ def user_input_summary():
         user_info["technical_skills"] = tech_skills_by_cat
         user_info["non_technical_skills"] = non_tech_names
         user_info["preferences"] = final_preferences
+
+        # 🔍 Debug print to verify order (optional)
+        print("🔎 Final user_info:", list(user_info.keys()))
 
         return jsonify({
             "success": True,
