@@ -218,7 +218,7 @@ def user_input_summary():
         major_row = cursor.fetchone()
         major_name = major_row['name'] if major_row else None
 
-        # ✅ Step 2: Get Selected Subjects (Grouped by Category)
+        # ✅ Step 2: Get Subjects
         subject_names_by_cat = []
         if subject_ids:
             format_strings = ','.join(['%s'] * len(subject_ids))
@@ -242,7 +242,7 @@ def user_input_summary():
                 grouped_subjects[cat_id]["subjects"].append({"id": row["id"], "name": row["name"]})
             subject_names_by_cat = list(grouped_subjects.values())
 
-        # ✅ Step 3: Get Technical Skills (Grouped by Category)
+        # ✅ Step 3: Technical Skills
         tech_skills_by_cat = []
         if technical_skill_ids:
             format_strings = ','.join(['%s'] * len(technical_skill_ids))
@@ -268,7 +268,7 @@ def user_input_summary():
                     grouped_skills[cat_id]["skills"].append({"id": row["id"], "name": row["name"]})
             tech_skills_by_cat = list(grouped_skills.values())
 
-        # ✅ Step 4: Get Non-Technical Skills
+        # ✅ Step 4: Non-Technical Skills
         non_tech_names = []
         if non_technical_skill_ids:
             format_strings = ','.join(['%s'] * len(non_technical_skill_ids))
@@ -279,10 +279,10 @@ def user_input_summary():
             cursor.execute(query, tuple(non_technical_skill_ids))
             non_tech_names = [row['name'] for row in cursor.fetchall()]
 
-        # ✅ Step 5: Preferences (Advanced, if provided)
+        # ✅ Step 5: Preferences
         final_preferences = preferences if preferences else {}
 
-        # ✅ Final Output: Ordered by Wizard Steps
+        # ✅ Return JSON
         return jsonify({
             "success": True,
             "user_info": {
