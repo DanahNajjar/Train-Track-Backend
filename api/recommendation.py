@@ -3,6 +3,16 @@ from api.db import get_db_connection
 
 recommendation_routes = Blueprint('recommendation', __name__)
 
+# 🔹 Validation helper function
+def validate_user_input(subject_ids, tech_skills, non_tech_skills):
+    if len(subject_ids) < 3:
+        return "Please select at least 3 subjects."
+    if not 3 <= len(tech_skills) <= 10:
+        return "Please select between 3 and 10 technical skills."
+    if not 3 <= len(non_tech_skills) <= 5:
+        return "Please select between 3 and 5 non-technical skills."
+    return None
+
 @recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
     data = request.get_json()
@@ -18,21 +28,10 @@ def get_recommendations():
         non_tech_skills = set(data.get("non_technical_skills", []))
         preferences = data.get("preferences", {})
 
-        # ✅ Backend Validation
-        if len(subject_ids) < 3:
-            return jsonify({"success": False, "message": "Please select at least 3 subjects."}), 400
-
-        if len(tech_skills) < 3 or len(tech_skills) > 10:
-            return jsonify({
-                "success": False,
-                "message": "Please select between 3 and 10 technical skills."
-            }), 400
-
-        if len(non_tech_skills) < 3 or len(non_tech_skills) > 5:
-            return jsonify({
-                "success": False,
-                "message": "Please select between 3 and 5 non-technical skills."
-            }), 400
+        # ✅ Validate inputs
+        validation_error = validate_user_input(subject_ids, tech_skills, non_tech_skills)
+        if validation_error:
+            return jsonify({"success": False, "message": validation_error}), 400
 
         # Step 1: Fetch all position prerequisites with types
         cursor.execute("""
