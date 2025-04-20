@@ -13,6 +13,17 @@ def validate_user_input(subject_ids, tech_skills, non_tech_skills):
         return "Please select between 3 and 5 non-technical skills."
     return None
 
+# 🎯 Fit level helper
+def get_fit_level(score):
+    if score >= 85:
+        return "Strong Fit"
+    elif score >= 70:
+        return "Good Fit"
+    elif score >= 50:
+        return "Partial Fit"
+    else:
+        return "Low Fit"
+
 @recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
     data = request.get_json()
@@ -105,7 +116,7 @@ def get_recommendations():
                 'match_score': total_score
             })
 
-        # Step 4: Add position names
+        # Step 4: Add position names and fit levels
         cursor.execute("SELECT id, name FROM positions")
         all_positions = {row['id']: row['name'] for row in cursor.fetchall()}
 
@@ -114,11 +125,11 @@ def get_recommendations():
             final_output.append({
                 'position_id': r['position_id'],
                 'position_name': all_positions.get(r['position_id'], 'Unknown'),
-                'match_score': r['match_score']
+                'match_score': r['match_score'],
+                'fit_level': get_fit_level(r['match_score'])  # ✅ Fit badge
             })
 
         final_output.sort(key=lambda x: x['match_score'], reverse=True)
-
         connection.close()
 
         return jsonify({
