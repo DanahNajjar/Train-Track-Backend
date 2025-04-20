@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify 
+from flask import Blueprint, request, jsonify
 from api.db import get_db_connection
 
 recommendation_routes = Blueprint('recommendation', __name__)
@@ -13,20 +13,10 @@ def validate_user_input(subject_ids, tech_skills, non_tech_skills):
         return "Please select between 3 and 5 non-technical skills."
     return None
 
-# 🎯 Fit level helper
-def get_fit_level(score):
-    if score >= 85:
-        return "Strong Fit"
-    elif score >= 70:
-        return "Good Fit"
-    elif score >= 50:
-        return "Partial Fit"
-    else:
-        return "Low Fit"
-
 @recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
     data = request.get_json()
+    debug_mode = request.args.get('debug', 'false') == 'true'
 
     try:
         connection = get_db_connection()
@@ -44,7 +34,7 @@ def get_recommendations():
         if validation_error:
             return jsonify({"success": False, "message": validation_error}), 400
 
-        # Step 1: Fetch all position prerequisites with types
+        # Step 1: Fetch all position prerequisites
         cursor.execute("""
             SELECT 
                 pp.position_id,
@@ -56,7 +46,7 @@ def get_recommendations():
         """)
         all_data = cursor.fetchall()
 
-        # Step 2: Organize scores by position and category
+        # Step 2: Organize scores
         position_scores = {}
         for row in all_data:
             pos_id = row['position_id']
@@ -75,18 +65,16 @@ def get_recommendations():
                 position_scores[pos_id]['subject_total'] += weight
                 if preq_id in subject_ids:
                     position_scores[pos_id]['subject_matched'] += weight
-
             elif preq_type == "Technical Skill":
                 position_scores[pos_id]['tech_total'] += weight
                 if preq_id in tech_skills:
                     position_scores[pos_id]['tech_matched'] += weight
-
             elif preq_type == "Non-Technical Skill":
                 position_scores[pos_id]['nontech_total'] += weight
                 if preq_id in non_tech_skills:
                     position_scores[pos_id]['nontech_matched'] += weight
 
-        # Step 3: Calculate normalized match scores
+        # Step 3: Calculate scores
         results = []
         for pos_id, score_data in position_scores.items():
             s_total = score_data['subject_total']
@@ -111,12 +99,25 @@ def get_recommendations():
             raw_score = subject_score + tech_score + nontech_score + category_bonus
             total_score = min(round(raw_score * 1.5, 2), 100)
 
-            results.append({
+            result = {
                 'position_id': pos_id,
                 'match_score': total_score
-            })
+            }
 
-        # Step 4: Add position names and fit levels
+            # ✅ Include debug info if enabled
+            if debug_mode:
+                result["debug"] = {
+                    "subject_score": round(subject_score, 2),
+                    "tech_score": round(tech_score, 2),
+                    "nontech_score": round(nontech_score, 2),
+                    "category_bonus": category_bonus,
+                    "raw_score_before_scaling": round(raw_score, 2),
+                    "final_scaled_score": total_score
+                }
+
+            results.append(result)
+
+        # Step 4: Add position names
         cursor.execute("SELECT id, name FROM positions")
         all_positions = {row['id']: row['name'] for row in cursor.fetchall()}
 
@@ -126,11 +127,11 @@ def get_recommendations():
                 'position_id': r['position_id'],
                 'position_name': all_positions.get(r['position_id'], 'Unknown'),
                 'match_score': r['match_score'],
-                'fit_level': get_fit_level(r['match_score'])  # ✅ Fit badge
+                'debug': r.get("debug") if debug_mode else None
             })
 
+        # Sort by match score descending
         final_output.sort(key=lambda x: x['match_score'], reverse=True)
-        connection.close()
 
         return jsonify({
             "success": True,
