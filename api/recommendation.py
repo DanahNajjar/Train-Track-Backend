@@ -12,11 +12,27 @@ def get_recommendations():
         cursor = connection.cursor(dictionary=True)
 
         # Extract inputs
-        major_id = data.get("major_id")  # Not used in logic for now
+        major_id = data.get("major_id")
         subject_ids = set(data.get("subjects", []))
         tech_skills = set(data.get("technical_skills", []))
         non_tech_skills = set(data.get("non_technical_skills", []))
-        preferences = data.get("preferences", {})  # Not used yet
+        preferences = data.get("preferences", {})
+
+        # ✅ Backend Validation
+        if len(subject_ids) < 3:
+            return jsonify({"success": False, "message": "Please select at least 3 subjects."}), 400
+
+        if len(tech_skills) < 3 or len(tech_skills) > 10:
+            return jsonify({
+                "success": False,
+                "message": "Please select between 3 and 10 technical skills."
+            }), 400
+
+        if len(non_tech_skills) < 3 or len(non_tech_skills) > 5:
+            return jsonify({
+                "success": False,
+                "message": "Please select between 3 and 5 non-technical skills."
+            }), 400
 
         # Step 1: Fetch all position prerequisites with types
         cursor.execute("""
@@ -75,14 +91,13 @@ def get_recommendations():
             tech_score = ((t_matched / t_total) if t_total else 0) * 30
             nontech_score = ((n_matched / n_total) if n_total else 0) * 20
 
-            # 🎁 Safe bonus if matched 2+ categories
             matched_components = sum([
                 1 if s_matched > 0 else 0,
                 1 if t_matched > 0 else 0,
                 1 if n_matched > 0 else 0
             ])
             category_bonus = 3 if matched_components >= 2 else 0
-            # 🔼 Soft boost (without breaking logic)
+
             raw_score = subject_score + tech_score + nontech_score + category_bonus
             total_score = min(round(raw_score * 1.5, 2), 100)
 
@@ -103,7 +118,6 @@ def get_recommendations():
                 'match_score': r['match_score']
             })
 
-        # Sort by score descending
         final_output.sort(key=lambda x: x['match_score'], reverse=True)
 
         connection.close()
@@ -118,4 +132,3 @@ def get_recommendations():
             "success": False,
             "message": str(e)
         }), 500
-
