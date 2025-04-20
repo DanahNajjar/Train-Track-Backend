@@ -39,7 +39,6 @@ def get_majors():
     return jsonify({ "success": True, "data": majors }), 200
 
 
-# ✅ Step 2: Get Subject Categories (IDs 11–18 Only, With Description & Image)
 @wizard_routes.route('/subject-categories', methods=['GET'])
 def get_subject_categories():
     try:
@@ -52,15 +51,18 @@ def get_subject_categories():
         """)
         rows = cursor.fetchall()
 
+        # ✅ Detect your live backend base URL
+        base_url = request.host_url.rstrip('/')
+
         categories = []
         for row in rows:
-            # Build static path
             static_path = f"/static/categories/{row['id']}.png"
+            full_url = f"{base_url}{static_path}"
             categories.append({
                 "id": row["id"],
                 "name": row["name"],
                 "description": row["description"],
-                "image_url": static_path
+                "image_url": full_url
             })
 
         return jsonify({ "success": True, "data": categories }), 200
@@ -72,7 +74,7 @@ def get_subject_categories():
         if connection.is_connected():
             cursor.close()
             connection.close()
-            
+
 # ✅ Step 2.1: Get Subjects by Category IDs (With Category Name)
 @wizard_routes.route('/subjects', methods=['GET'])
 def get_subjects_by_categories():
@@ -212,7 +214,6 @@ def save_advanced_preferences():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
-# ✅ Step 6: Return Wizard Summary (Ordered by Wizard Flow)
 # ✅ Step 6: Return Wizard Summary (Organized by Wizard Flow)
 @wizard_routes.route('/user-input-summary', methods=['POST'])
 def user_input_summary():
