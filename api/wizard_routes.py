@@ -132,11 +132,18 @@ def get_technical_skills_grouped():
     connection = get_db_connection()
     cursor = connection.cursor(dictionary=True)
     format_strings = ','.join(['%s'] * len(category_ids))
+
     query = f"""
-        SELECT DISTINCT p.id, p.name, csm.category_id, c.name AS category_name
+        SELECT 
+            DISTINCT p.id,
+            p.name,
+            csm.category_id AS subject_category_id,
+            sc.name AS subject_category_name,
+            tc.name AS tech_category_name
         FROM prerequisites p
         JOIN category_skill_map csm ON p.id = csm.skill_id
-        JOIN categories c ON csm.category_id = c.id
+        JOIN categories sc ON csm.category_id = sc.id      -- Subject category
+        JOIN categories tc ON p.category_id = tc.id        -- Tech skill category
         WHERE p.type = 'Technical Skill' AND csm.category_id IN ({format_strings})
     """
     cursor.execute(query, category_ids)
@@ -145,14 +152,18 @@ def get_technical_skills_grouped():
 
     grouped = {}
     for row in rows:
-        cid = row['category_id']
+        cid = row['subject_category_id']
         if cid not in grouped:
             grouped[cid] = {
                 "Subject_category_id": cid,
-                "Subject_category_name": row['category_name'],
+                "Subject_category_name": row['subject_category_name'],
                 "skills": []
             }
-        grouped[cid]['skills'].append({"id": row['id'], "name": row['name']})
+        grouped[cid]['skills'].append({
+            "id": row['id'],
+            "name": row['name'],
+            "tech_category_name": row['tech_category_name']
+        })
 
     return jsonify({ "success": True, "data": list(grouped.values()) }), 200
     
