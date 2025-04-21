@@ -117,9 +117,9 @@ def get_subjects_by_categories():
     }), 200
 
 
-# ✅ Step 3: Technical Skills by Subject Category IDs (Grouped, using category_id)
+# ✅ Step 3: Technical Skills by Subject Category IDs (Grouped by tech_category_name)
 @wizard_routes.route('/technical-skills', methods=['GET'])
-def get_technical_skills_grouped():
+def get_technical_skills_grouped_by_tech_category():
     ids_param = request.args.get('category_ids')
     if not ids_param:
         return jsonify({ "success": False, "message": "Missing category ids." }), 400
@@ -135,15 +135,12 @@ def get_technical_skills_grouped():
 
     query = f"""
         SELECT 
-            DISTINCT p.id,
+            p.id,
             p.name,
-            csm.category_id AS subject_category_id,
-            sc.name AS subject_category_name,
             tc.name AS tech_category_name
         FROM prerequisites p
         JOIN category_skill_map csm ON p.id = csm.skill_id
-        JOIN categories sc ON csm.category_id = sc.id      -- Subject category
-        JOIN categories tc ON p.category_id = tc.id        -- Tech skill category
+        JOIN categories tc ON p.category_id = tc.id
         WHERE p.type = 'Technical Skill' AND csm.category_id IN ({format_strings})
     """
     cursor.execute(query, category_ids)
@@ -152,21 +149,19 @@ def get_technical_skills_grouped():
 
     grouped = {}
     for row in rows:
-        cid = row['subject_category_id']
-        if cid not in grouped:
-            grouped[cid] = {
-                "Subject_category_id": cid,
-                "Subject_category_name": row['subject_category_name'],
+        tech_cat = row['tech_category_name']
+        if tech_cat not in grouped:
+            grouped[tech_cat] = {
+                "tech_category_name": tech_cat,
                 "skills": []
             }
-        grouped[cid]['skills'].append({
-            "id": row['id'],
-            "name": row['name'],
-            "tech_category_name": row['tech_category_name']
+        grouped[tech_cat]["skills"].append({
+            "id": row["id"],
+            "name": row["name"]
         })
 
     return jsonify({ "success": True, "data": list(grouped.values()) }), 200
-    
+
 # ✅ Step 4: Get Non-Technical Skills
 @wizard_routes.route('/non-technical-skills', methods=['GET'])
 def get_non_technical_skills():
