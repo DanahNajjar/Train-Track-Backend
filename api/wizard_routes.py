@@ -135,37 +135,63 @@ def get_technical_skills_grouped():
 
     query = f"""
         SELECT 
-            DISTINCT p.id,
+            p.id,
             p.name,
             csm.category_id AS subject_category_id,
             sc.name AS subject_category_name,
             tc.name AS tech_category_name
         FROM prerequisites p
         JOIN category_skill_map csm ON p.id = csm.skill_id
-        JOIN categories sc ON csm.category_id = sc.id      -- Subject category
-        JOIN categories tc ON p.category_id = tc.id        -- Tech skill category
+        JOIN categories sc ON csm.category_id = sc.id
+        JOIN categories tc ON p.category_id = tc.id
         WHERE p.type = 'Technical Skill' AND csm.category_id IN ({format_strings})
+        ORDER BY sc.id, tc.name, p.name
     """
     cursor.execute(query, category_ids)
     rows = cursor.fetchall()
     connection.close()
 
-    grouped = {}
+    # ✅ Grouping by subject category → tech category → skills
+    subject_grouped = {}
     for row in rows:
-        cid = row['subject_category_id']
-        if cid not in grouped:
-            grouped[cid] = {
-                "Subject_category_id": cid,
-                "Subject_category_name": row['subject_category_name'],
-                "skills": []
+        sub_id = row['subject_category_id']
+        sub_name = row['subject_category_name']
+        tech_cat = row['tech_category_name']
+
+        if sub_id not in subject_grouped:
+            subject_grouped[sub_id] = {
+                "Subject_category_id": sub_id,
+                "Subject_category_name": sub_name,
+                "tech_categories": {}
             }
-        grouped[cid]['skills'].append({
-            "id": row['id'],
-            "name": row['name'],
-            "tech_category_name": row['tech_category_name']
+
+        tech_group = subject_grouped[sub_id]["tech_categories"]
+        if tech_cat not in tech_group:
+            tech_group[tech_cat] = []
+
+        tech_group[tech_cat].append({
+            "id": row["id"],
+            "name": row["name"]
         })
 
-    return jsonify({ "success": True, "data": list(grouped.values()) }), 200
+    # ✅ Convert to required JSON format
+    final_output = []
+    for subject_data in subject_grouped.values():
+        tech_cats_list = []
+        for cat_name, skills in subject_data["tech_categories"].items():
+            tech_cats_list.append({
+                "tech_category_name": cat_name,
+                "skills": skills
+            })
+
+        final_output.append({
+            "Subject_category_id": subject_data["Subject_category_id"],
+            "Subject_category_name": subject_data["Subject_category_name"],
+            "tech_categories": tech_cats_list
+        })
+
+    return jsonify({ "success": True, "data": final_output }), 200
+
     
 # ✅ Step 4: Get Non-Technical Skills
 @wizard_routes.route('/non-technical-skills', methods=['GET'])
