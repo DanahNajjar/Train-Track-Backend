@@ -130,21 +130,30 @@ def get_recommendations():
 
             results.append(result)
 
-        # ✅ Step 4: Add Position Names
-        cursor.execute("SELECT id, name FROM positions")
-        all_positions = {row['id']: row['name'] for row in cursor.fetchall()}
+        # ✅ Step 4: Add Position Names & min_fit_score
+        cursor.execute("SELECT id, name, min_fit_score FROM positions")
+        all_positions = {
+            row['id']: {
+                'name': row['name'],
+                'min_fit_score': row['min_fit_score']
+            } for row in cursor.fetchall()
+        }
 
         final_output = []
         for r in results:
-            final_output.append({
-                'position_id': r['position_id'],
-                'position_name': all_positions.get(r['position_id'], 'Unknown'),
-                'match_score': r['match_score'],
-                'fit_level': r['fit_level'],
-                'debug': r.get("debug") if debug_mode else None
-            })
+            pos_id = r['position_id']
+            min_required = all_positions.get(pos_id, {}).get('min_fit_score', 0)
 
-        # ✅ Debug print to terminal
+            if r['match_score'] >= min_required:
+                final_output.append({
+                    'position_id': pos_id,
+                    'position_name': all_positions[pos_id]['name'],
+                    'match_score': r['match_score'],
+                    'fit_level': r['fit_level'],
+                    'debug': r.get("debug") if debug_mode else None
+                })
+
+        # ✅ Debug Print
         if debug_mode:
             print("\n🔍 Match Results (Debug Print):")
             for r in final_output:
