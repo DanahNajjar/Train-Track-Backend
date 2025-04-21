@@ -76,12 +76,10 @@ def get_recommendations():
                 position_scores[pos_id]['subject_total'] += weight
                 if preq_id in subject_ids:
                     position_scores[pos_id]['subject_matched'] += weight
-
             elif preq_type == "Technical Skill":
                 position_scores[pos_id]['tech_total'] += weight
                 if preq_id in tech_skills:
                     position_scores[pos_id]['tech_matched'] += weight
-
             elif preq_type == "Non-Technical Skill":
                 position_scores[pos_id]['nontech_total'] += weight
                 if preq_id in non_tech_skills:
@@ -145,6 +143,19 @@ def get_recommendations():
                 'fit_level': r['fit_level'],
                 'debug': r.get("debug") if debug_mode else None
             })
+
+        # ✅ Debug print to terminal
+        if debug_mode:
+            print("\n🔍 Match Results (Debug Print):")
+            for r in final_output:
+                print(f"📌 {r['position_name']} — {r['match_score']}% [{r['fit_level']}]")
+                if r.get("debug"):
+                    print(f"   - Subject: {r['debug']['subject_score']}")
+                    print(f"   - Tech: {r['debug']['tech_score']}")
+                    print(f"   - Non-Tech: {r['debug']['nontech_score']}")
+                    print(f"   - Bonus: {r['debug']['category_bonus']}")
+                    print(f"   - Raw: {r['debug']['raw_score_before_scaling']}")
+                    print(f"   - Final: {r['debug']['final_scaled_score']}")
 
         final_output.sort(key=lambda x: x['match_score'], reverse=True)
 
