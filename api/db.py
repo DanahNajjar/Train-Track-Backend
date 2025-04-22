@@ -2,16 +2,9 @@ import os
 import mysql.connector
 from dotenv import load_dotenv
 
-# Load .env file
-print("📦 Attempting to load .env...")
+# Load environment variables from .env file
 load_dotenv()
 
-# Show debug info
-print("🧪 DB_HOST:", os.getenv("DB_HOST"))
-print("🧪 DB_PORT:", os.getenv("DB_PORT"))
-print("🧪 DB_USER:", os.getenv("DB_USER"))
-
-# Create DB connection
 def get_db_connection():
     try:
         return mysql.connector.connect(
