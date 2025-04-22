@@ -2,12 +2,12 @@ import os
 import mysql.connector
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load environment variables from .env (local dev) or Render env vars (production)
 load_dotenv()
 
-# Read from environment (Render injects them automatically)
+# Read DB credentials
 host = os.getenv("MYSQL_HOST")
-port = int(os.getenv("MYSQL_PORT", 3306))
+port = int(os.getenv("MYSQL_PORT"))
 user = os.getenv("MYSQL_USER")
 password = os.getenv("MYSQL_PASSWORD")
 database = os.getenv("MYSQL_DATABASE")
