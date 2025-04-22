@@ -1,9 +1,12 @@
 import os
 import mysql.connector
+from dotenv import load_dotenv
 
-# This reads environment variables directly (Render & Railway)
+# Only for local testing
+load_dotenv()
+
 host = os.getenv("MYSQL_HOST")
-port = int(os.getenv("MYSQL_PORT", 3306))
+port = int(os.getenv("MYSQL_PORT"))
 user = os.getenv("MYSQL_USER")
 password = os.getenv("MYSQL_PASSWORD")
 database = os.getenv("MYSQL_DATABASE")
