@@ -2,20 +2,24 @@ import os
 import mysql.connector
 from dotenv import load_dotenv
 
-# Load variables from .env file
+# Load environment variables (local .env OR Render's injected ones)
 load_dotenv()
+
+# Debug prints (optional - remove in production)
+print("📦 Connecting to DB...")
+print("🧪 DB_HOST:", os.getenv("DB_HOST"))
+print("🧪 DB_PORT:", os.getenv("DB_PORT"))
+print("🧪 DB_USER:", os.getenv("DB_USER"))
 
 def get_db_connection():
     try:
-        connection = mysql.connector.connect(
-            host=os.getenv("DB_HOST"),
-            port=int(os.getenv("DB_PORT")),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            database=os.getenv("DB_NAME")
+        return mysql.connector.connect(
+            host=os.getenv('DB_HOST'),
+            port=int(os.getenv('DB_PORT')),
+            user=os.getenv('DB_USER'),
+            password=os.getenv('DB_PASSWORD'),
+            database=os.getenv('DB_NAME')
         )
-        print("✅ Connected to database successfully!")
-        return connection
     except mysql.connector.Error as err:
         print("❌ Failed to connect to database:", err)
         raise
