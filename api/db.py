@@ -2,10 +2,10 @@ import os
 import mysql.connector
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
+# ✅ Load the environment variables
 load_dotenv()
 
-# Use cloud DB directly (no switching)
+# ✅ Connect directly to Railway DB
 def get_db_connection():
     return mysql.connector.connect(
         host=os.getenv("DB_HOST"),
