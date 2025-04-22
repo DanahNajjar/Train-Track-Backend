@@ -13,16 +13,14 @@ def validate_user_input(subject_ids, tech_skills, non_tech_skills):
         return "Please select between 3 and 5 non-technical skills."
     return None
 
-# ✅ Fit Level Helper
-def get_fit_level(score):
-    if score >= 90:
-        return "Perfect Fit"
-    elif score >= 70:
-        return "Good Fit"
-    elif score >= 50:
-        return "Moderate Fit"
+# ✅ Fit Level Helper (NEW LOGIC 🎯)
+def get_fit_level(matched_score, min_fit_score):
+    if matched_score >= min_fit_score * 1.25:
+        return "Perfect Match"
+    elif matched_score >= min_fit_score:
+        return "Partial Match"
     else:
-        return "Low Fit"
+        return "No Match"
 
 # ✅ Main Recommendation Endpoint
 @recommendation_routes.route('/recommendations', methods=['POST'])
@@ -39,7 +37,7 @@ def get_recommendations():
         tech_skills = set(data.get("technical_skills", []))
         non_tech_skills = set(data.get("non_technical_skills", []))
 
-        # ✅ Validate
+        # ✅ Validate input lengths
         validation_error = validate_user_input(subject_ids, tech_skills, non_tech_skills)
         if validation_error:
             return jsonify({"success": False, "message": validation_error}), 400
@@ -79,15 +77,16 @@ def get_recommendations():
             ):
                 position_scores[pos_id]['matched_weight'] += weight
 
-        # ✅ Step 3: Load positions and compare to min_fit_score
+        # ✅ Step 3: Load positions with min_fit_score
         cursor.execute("SELECT id, name, min_fit_score FROM positions")
         all_positions = {
             row['id']: {
                 'name': row['name'],
-                'min_fit_score': row['min_fit_score']
+                'min_fit_score': row['min_fit_score'] or 0  # Default to 0 if null
             } for row in cursor.fetchall()
         }
 
+        # ✅ Step 4: Build final output only for positions that pass min_fit_score
         final_output = []
         for pos_id, score_data in position_scores.items():
             matched_score = score_data['matched_weight']
@@ -97,38 +96,37 @@ def get_recommendations():
             if not position:
                 continue
 
-            if matched_score >= position['min_fit_score']:
-                percentage_score = round((matched_score / total_score) * 100, 2) if total_score > 0 else 0
-                fit_level = get_fit_level(percentage_score)
+            # ✅ Skip positions below the minimum required score
+            if position['min_fit_score'] > 0 and matched_score < position['min_fit_score']:
+                continue
 
-                result = {
-                    'position_id': pos_id,
-                    'position_name': position['name'],
-                    'match_score': matched_score,
-                    'fit_level': fit_level
+            fit_level = get_fit_level(matched_score, position['min_fit_score'])
+
+            result = {
+                'position_id': pos_id,
+                'position_name': position['name'],
+                'match_score': matched_score,
+                'fit_level': fit_level
+            }
+
+            if debug_mode:
+                result['debug'] = {
+                    'matched_score': matched_score,
+                    'total_required_score': total_score,
+                    'min_fit_score': position['min_fit_score'],
+                    'fit_level': fit_level,
+                    'percentage_of_total': round((matched_score / total_score) * 100, 2) if total_score > 0 else 0
                 }
 
-                if debug_mode:
-                    result['debug'] = {
-                        'matched_score': matched_score,
-                        'total_required_score': total_score,
-                        'min_fit_score': position['min_fit_score'],
-                        'percentage_of_total': percentage_score
-                    }
-
-                final_output.append(result)
+            final_output.append(result)
 
         final_output.sort(key=lambda x: x['match_score'], reverse=True)
 
-        # ✅ Optional debug output to console
+        # ✅ Optional debug print
         if debug_mode:
-            print("\n🔍 Match Results (New Logic):")
+            print("\n🔍 Match Results (with fit level logic):")
             for r in final_output:
                 print(f"📌 {r['position_name']} — {r['match_score']} [{r['fit_level']}]")
-                if 'debug' in r:
-                    print(f"   - Total Required: {r['debug']['total_required_score']}")
-                    print(f"   - Min Fit Score: {r['debug']['min_fit_score']}")
-                    print(f"   - % of Total: {r['debug']['percentage_of_total']}")
 
         return jsonify({
             "success": True,
@@ -137,7 +135,7 @@ def get_recommendations():
 
     except Exception as e:
         import traceback
-        traceback.print_exc()  # ✅ Print full traceback to terminal
+        traceback.print_exc()
         return jsonify({
             "success": False,
             "message": str(e)
