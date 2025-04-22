@@ -3,15 +3,17 @@ from api.db import get_db_connection
 
 recommendation_routes = Blueprint('recommendation', __name__)
 
+# ✅ Validation helper
 def validate_user_input(subject_ids, tech_skills, non_tech_skills):
-    if len(subject_ids) < 3:
-        return "Please select at least 3 subjects."
-    if not 3 <= len(tech_skills) <= 10:
-        return "Please select between 3 and 10 technical skills."
+    if not 3 <= len(subject_ids) <= 7:
+        return "Please select between 3 and 7 subjects."
+    if not 3 <= len(tech_skills) <= 8:
+        return "Please select between 3 and 8 technical skills."
     if not 3 <= len(non_tech_skills) <= 5:
         return "Please select between 3 and 5 non-technical skills."
     return None
 
+# ✅ Fit Level Helper
 def get_fit_level(score):
     if score >= 90:
         return "Perfect Fit"
@@ -22,6 +24,7 @@ def get_fit_level(score):
     else:
         return "Low Fit"
 
+# ✅ Main Recommendation Endpoint
 @recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
     data = request.get_json()
@@ -36,6 +39,7 @@ def get_recommendations():
         tech_skills = set(data.get("technical_skills", []))
         non_tech_skills = set(data.get("non_technical_skills", []))
 
+        # ✅ Validate
         validation_error = validate_user_input(subject_ids, tech_skills, non_tech_skills)
         if validation_error:
             return jsonify({"success": False, "message": validation_error}), 400
@@ -75,7 +79,7 @@ def get_recommendations():
             ):
                 position_scores[pos_id]['matched_weight'] += weight
 
-        # ✅ Step 3: Load positions with min_fit_score
+        # ✅ Step 3: Load positions and compare to min_fit_score
         cursor.execute("SELECT id, name, min_fit_score FROM positions")
         all_positions = {
             row['id']: {
@@ -114,10 +118,9 @@ def get_recommendations():
 
                 final_output.append(result)
 
-        # ✅ Sort by matched score descending
         final_output.sort(key=lambda x: x['match_score'], reverse=True)
 
-        # ✅ Debug print
+        # ✅ Optional debug output to console
         if debug_mode:
             print("\n🔍 Match Results (New Logic):")
             for r in final_output:
@@ -133,8 +136,9 @@ def get_recommendations():
         }), 200
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()  # ✅ Print full traceback to terminal
         return jsonify({
             "success": False,
             "message": str(e)
         }), 500
-

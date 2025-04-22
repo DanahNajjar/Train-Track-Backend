@@ -2,19 +2,34 @@ import os
 import mysql.connector
 from dotenv import load_dotenv
 
-# Load .env variables
-print("📦 Attempting to load .env...")
+print("📦 Loading .env...")
 load_dotenv()
 
-print("🧪 DB_HOST:", os.getenv("DB_HOST"))
-print("🧪 DB_PORT:", os.getenv("DB_PORT"))
-print("🧪 DB_USER:", os.getenv("DB_USER"))
+profile = os.getenv("PROFILE", "local")
+print(f"🧠 Using profile: {profile}")
+
+if profile == "cloud":
+    host = os.getenv("CLOUD_DB_HOST")
+    port = int(os.getenv("CLOUD_DB_PORT"))
+    user = os.getenv("CLOUD_DB_USER")
+    password = os.getenv("CLOUD_DB_PASSWORD")
+    database = os.getenv("CLOUD_DB_NAME")
+else:
+    host = os.getenv("LOCAL_DB_HOST")
+    port = int(os.getenv("LOCAL_DB_PORT"))
+    user = os.getenv("LOCAL_DB_USER")
+    password = os.getenv("LOCAL_DB_PASSWORD")
+    database = os.getenv("LOCAL_DB_NAME")
+
+print("🧪 DB_HOST:", host)
+print("🧪 DB_PORT:", port)
+print("🧪 DB_USER:", user)
 
 def get_db_connection():
     return mysql.connector.connect(
-        host=os.getenv('DB_HOST'),
-        user=os.getenv('DB_USER'),
-        password=os.getenv('DB_PASSWORD'),
-        database=os.getenv('DB_NAME'),
-        port=int(os.getenv('DB_PORT'))
+        host=host,
+        port=port,
+        user=user,
+        password=password,
+        database=database
     )
