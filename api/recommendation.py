@@ -3,7 +3,6 @@ from api.db import get_db_connection
 
 recommendation_routes = Blueprint('recommendation', __name__)
 
-# ✅ Validation helper
 def validate_user_input(subject_ids, tech_skills, non_tech_skills):
     if len(subject_ids) < 3:
         return "Please select at least 3 subjects."
@@ -13,7 +12,6 @@ def validate_user_input(subject_ids, tech_skills, non_tech_skills):
         return "Please select between 3 and 5 non-technical skills."
     return None
 
-# ✅ Fit Level Helper
 def get_fit_level(score):
     if score >= 90:
         return "Perfect Fit"
@@ -34,18 +32,15 @@ def get_recommendations():
         cursor = connection.cursor(dictionary=True)
 
         # ✅ Extract Inputs
-        major_id = data.get("major_id")
         subject_ids = set(data.get("subjects", []))
         tech_skills = set(data.get("technical_skills", []))
         non_tech_skills = set(data.get("non_technical_skills", []))
-        preferences = data.get("preferences", {})
 
-        # ✅ Validate Inputs
         validation_error = validate_user_input(subject_ids, tech_skills, non_tech_skills)
         if validation_error:
             return jsonify({"success": False, "message": validation_error}), 400
 
-        # ✅ Step 1: Fetch All Prerequisites
+        # ✅ Step 1: Fetch all prerequisite weights
         cursor.execute("""
             SELECT 
                 pp.position_id,
@@ -57,7 +52,7 @@ def get_recommendations():
         """)
         all_data = cursor.fetchall()
 
-        # ✅ Step 2: Organize by Position
+        # ✅ Step 2: Sum matched weights per position
         position_scores = {}
         for row in all_data:
             pos_id = row['position_id']
@@ -67,70 +62,20 @@ def get_recommendations():
 
             if pos_id not in position_scores:
                 position_scores[pos_id] = {
-                    'subject_total': 0, 'subject_matched': 0,
-                    'tech_total': 0, 'tech_matched': 0,
-                    'nontech_total': 0, 'nontech_matched': 0
+                    "matched_weight": 0,
+                    "total_weight": 0
                 }
 
-            if preq_type == "Subject":
-                position_scores[pos_id]['subject_total'] += weight
-                if preq_id in subject_ids:
-                    position_scores[pos_id]['subject_matched'] += weight
-            elif preq_type == "Technical Skill":
-                position_scores[pos_id]['tech_total'] += weight
-                if preq_id in tech_skills:
-                    position_scores[pos_id]['tech_matched'] += weight
-            elif preq_type == "Non-Technical Skill":
-                position_scores[pos_id]['nontech_total'] += weight
-                if preq_id in non_tech_skills:
-                    position_scores[pos_id]['nontech_matched'] += weight
+            position_scores[pos_id]['total_weight'] += weight
 
-        # ✅ Step 3: Scoring Logic
-        results = []
-        for pos_id, score_data in position_scores.items():
-            s_total = score_data['subject_total']
-            t_total = score_data['tech_total']
-            n_total = score_data['nontech_total']
+            if (
+                (preq_type == "Subject" and preq_id in subject_ids) or
+                (preq_type == "Technical Skill" and preq_id in tech_skills) or
+                (preq_type == "Non-Technical Skill" and preq_id in non_tech_skills)
+            ):
+                position_scores[pos_id]['matched_weight'] += weight
 
-            s_matched = score_data['subject_matched']
-            t_matched = score_data['tech_matched']
-            n_matched = score_data['nontech_matched']
-
-            subject_score = ((s_matched / s_total) if s_total else 0) * 50
-            tech_score = ((t_matched / t_total) if t_total else 0) * 30
-            nontech_score = ((n_matched / n_total) if n_total else 0) * 20
-
-            matched_components = sum([
-                1 if s_matched > 0 else 0,
-                1 if t_matched > 0 else 0,
-                1 if n_matched > 0 else 0
-            ])
-            category_bonus = 3 if matched_components >= 2 else 0
-
-            raw_score = subject_score + tech_score + nontech_score + category_bonus
-            total_score = min(round(raw_score * 1.5, 2), 100)
-            fit_level = get_fit_level(total_score)
-
-            result = {
-                'position_id': pos_id,
-                'match_score': total_score,
-                'fit_level': fit_level
-            }
-
-            if debug_mode:
-                result["debug"] = {
-                    "subject_score": round(subject_score, 2),
-                    "tech_score": round(tech_score, 2),
-                    "nontech_score": round(nontech_score, 2),
-                    "category_bonus": category_bonus,
-                    "raw_score_before_scaling": round(raw_score, 2),
-                    "final_scaled_score": total_score,
-                    "fit_level": fit_level
-                }
-
-            results.append(result)
-
-        # ✅ Step 4: Add Position Names & min_fit_score
+        # ✅ Step 3: Load positions with min_fit_score
         cursor.execute("SELECT id, name, min_fit_score FROM positions")
         all_positions = {
             row['id']: {
@@ -140,33 +85,47 @@ def get_recommendations():
         }
 
         final_output = []
-        for r in results:
-            pos_id = r['position_id']
-            min_required = all_positions.get(pos_id, {}).get('min_fit_score', 0)
+        for pos_id, score_data in position_scores.items():
+            matched_score = score_data['matched_weight']
+            total_score = score_data['total_weight']
+            position = all_positions.get(pos_id)
 
-            if r['match_score'] >= min_required:
-                final_output.append({
+            if not position:
+                continue
+
+            if matched_score >= position['min_fit_score']:
+                percentage_score = round((matched_score / total_score) * 100, 2) if total_score > 0 else 0
+                fit_level = get_fit_level(percentage_score)
+
+                result = {
                     'position_id': pos_id,
-                    'position_name': all_positions[pos_id]['name'],
-                    'match_score': r['match_score'],
-                    'fit_level': r['fit_level'],
-                    'debug': r.get("debug") if debug_mode else None
-                })
+                    'position_name': position['name'],
+                    'match_score': matched_score,
+                    'fit_level': fit_level
+                }
 
-        # ✅ Debug Print
-        if debug_mode:
-            print("\n🔍 Match Results (Debug Print):")
-            for r in final_output:
-                print(f"📌 {r['position_name']} — {r['match_score']}% [{r['fit_level']}]")
-                if r.get("debug"):
-                    print(f"   - Subject: {r['debug']['subject_score']}")
-                    print(f"   - Tech: {r['debug']['tech_score']}")
-                    print(f"   - Non-Tech: {r['debug']['nontech_score']}")
-                    print(f"   - Bonus: {r['debug']['category_bonus']}")
-                    print(f"   - Raw: {r['debug']['raw_score_before_scaling']}")
-                    print(f"   - Final: {r['debug']['final_scaled_score']}")
+                if debug_mode:
+                    result['debug'] = {
+                        'matched_score': matched_score,
+                        'total_required_score': total_score,
+                        'min_fit_score': position['min_fit_score'],
+                        'percentage_of_total': percentage_score
+                    }
 
+                final_output.append(result)
+
+        # ✅ Sort by matched score descending
         final_output.sort(key=lambda x: x['match_score'], reverse=True)
+
+        # ✅ Debug print
+        if debug_mode:
+            print("\n🔍 Match Results (New Logic):")
+            for r in final_output:
+                print(f"📌 {r['position_name']} — {r['match_score']} [{r['fit_level']}]")
+                if 'debug' in r:
+                    print(f"   - Total Required: {r['debug']['total_required_score']}")
+                    print(f"   - Min Fit Score: {r['debug']['min_fit_score']}")
+                    print(f"   - % of Total: {r['debug']['percentage_of_total']}")
 
         return jsonify({
             "success": True,
@@ -178,3 +137,4 @@ def get_recommendations():
             "success": False,
             "message": str(e)
         }), 500
+
