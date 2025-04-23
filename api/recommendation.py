@@ -124,6 +124,18 @@ def get_recommendations():
 
         final_output.sort(key=lambda x: x['match_score'], reverse=True)
 
+        # ✅ Fallback Logic Placeholder — if nothing matched
+        if debug_mode and len(final_output) == 0:
+            print("\n⚠️ No positions passed the min_fit_score threshold.")
+            print("💡 [Fallback Logic Placeholder] You could prompt the user to select more inputs here (not enough for any match).")
+
+        if len(final_output) == 0:
+            return jsonify({
+                "success": True,
+                "recommended_positions": [],
+                "note": "💡 No positions matched. You can implement fallback logic here to suggest selecting more inputs."
+            })
+
         return jsonify({
             "success": True,
             "recommended_positions": final_output
