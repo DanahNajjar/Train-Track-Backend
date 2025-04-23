@@ -13,7 +13,7 @@ def validate_user_input(subject_ids, tech_skills, non_tech_skills):
         return "Please select between 3 and 5 non-technical skills."
     return None
 
-# ✅ Fit Level Helper (NEW LOGIC 🎯)
+# ✅ Fit Level Helper
 def get_fit_level(matched_score, min_fit_score):
     if matched_score >= min_fit_score * 1.25:
         return "Perfect Match"
@@ -36,6 +36,9 @@ def get_recommendations():
         subject_ids = set(data.get("subjects", []))
         tech_skills = set(data.get("technical_skills", []))
         non_tech_skills = set(data.get("non_technical_skills", []))
+
+        # ✅ Combine all selected prerequisite IDs to avoid double-counting
+        all_selected_ids = subject_ids.union(tech_skills).union(non_tech_skills)
 
         # ✅ Validate input lengths
         validation_error = validate_user_input(subject_ids, tech_skills, non_tech_skills)
@@ -60,7 +63,6 @@ def get_recommendations():
             pos_id = row['position_id']
             preq_id = row['prerequisite_id']
             weight = row['weight']
-            preq_type = row['type']
 
             if pos_id not in position_scores:
                 position_scores[pos_id] = {
@@ -70,11 +72,7 @@ def get_recommendations():
 
             position_scores[pos_id]['total_weight'] += weight
 
-            if (
-                (preq_type == "Subject" and preq_id in subject_ids) or
-                (preq_type == "Technical Skill" and preq_id in tech_skills) or
-                (preq_type == "Non-Technical Skill" and preq_id in non_tech_skills)
-            ):
+            if preq_id in all_selected_ids:
                 position_scores[pos_id]['matched_weight'] += weight
 
         # ✅ Step 3: Load positions with min_fit_score
@@ -82,11 +80,11 @@ def get_recommendations():
         all_positions = {
             row['id']: {
                 'name': row['name'],
-                'min_fit_score': row['min_fit_score'] or 0  # Default to 0 if null
+                'min_fit_score': row['min_fit_score'] or 0
             } for row in cursor.fetchall()
         }
 
-        # ✅ Step 4: Build final output only for positions that pass min_fit_score
+        # ✅ Step 4: Build final output only for positions that meet min_fit_score
         final_output = []
         for pos_id, score_data in position_scores.items():
             matched_score = score_data['matched_weight']
@@ -96,8 +94,12 @@ def get_recommendations():
             if not position:
                 continue
 
-            # ✅ Skip positions below the minimum required score
-            if position['min_fit_score'] > 0 and matched_score < position['min_fit_score']:
+            # ❌ Skip positions with no min_fit_score
+            if position['min_fit_score'] <= 0:
+                continue
+
+            # ❌ Skip positions that don't meet the threshold
+            if matched_score < position['min_fit_score']:
                 continue
 
             fit_level = get_fit_level(matched_score, position['min_fit_score'])
@@ -122,9 +124,8 @@ def get_recommendations():
 
         final_output.sort(key=lambda x: x['match_score'], reverse=True)
 
-        # ✅ Optional debug print
         if debug_mode:
-            print("\n🔍 Match Results (with fit level logic):")
+            print("\n🔍 Match Results (Filtered & Cleaned):")
             for r in final_output:
                 print(f"📌 {r['position_name']} — {r['match_score']} [{r['fit_level']}]")
 
