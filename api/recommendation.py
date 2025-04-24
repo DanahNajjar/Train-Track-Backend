@@ -82,6 +82,8 @@ def get_recommendations():
 
         # ✅ Final output
         final_output = []
+        unmatched_positions = []
+
         for pos_id, score_data in position_scores.items():
             matched_score = score_data['matched_weight']
             total_score = score_data['total_weight']
@@ -117,6 +119,12 @@ def get_recommendations():
                 if debug_mode:
                     result['debug'] = debug_info
                 final_output.append(result)
+            else:
+                unmatched_positions.append({
+                    'position_name': position['name'],
+                    'matched_score': matched_score,
+                    'min_fit_score': position['min_fit_score']
+                })
 
             if debug_mode:
                 print(f"\n📌 {position['name']} — Score: {matched_score}/{total_score}")
@@ -124,19 +132,23 @@ def get_recommendations():
 
         final_output.sort(key=lambda x: x['match_score'], reverse=True)
 
-        # ✅ Fallback Logic Response if no positions matched
+        # ✅ Return fallback response if nothing matched
         if len(final_output) == 0:
             if debug_mode:
                 print("\n⚠️ No positions matched — fallback logic placeholder triggered.")
+                for entry in unmatched_positions:
+                    print(f"   ✗ {entry['position_name']} — {entry['matched_score']} < min_fit {entry['min_fit_score']}")
             return jsonify({
                 "note": "💡 No positions matched.",
                 "suggestion": "Consider selecting more relevant subjects or skills.",
                 "fallback_possible": True,
+                "fallback_triggered": True,
+                "unmatched_positions": unmatched_positions,
                 "recommended_positions": [],
                 "success": True
             }), 200
 
-        # ✅ Normal result
+        # ✅ Return successful matches
         return jsonify({
             "success": True,
             "recommended_positions": final_output
