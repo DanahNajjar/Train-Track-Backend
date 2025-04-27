@@ -3,21 +3,23 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 
-# Load environment variables
-load_dotenv()
+# ✅ Load local environment
+load_dotenv(dotenv_path=".env.local")
 
-# Import blueprints
+# ✅ Import blueprints
 from api.wizard_routes import wizard_routes
 from api.recommendation import recommendation_routes
 
+# ✅ Create app
 app = Flask(__name__, static_folder='static')
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "train_track_secret_key")
 CORS(app)
 
-# ✅ register wizard routes with /wizard prefix
+# ✅ Register routes
 app.register_blueprint(wizard_routes, url_prefix='/wizard')
 app.register_blueprint(recommendation_routes)
 
+# ✅ Default route
 @app.route('/')
 def home():
     return "✅ Train Track Backend is Running!"
@@ -26,11 +28,10 @@ def home():
 def serve_static(filename):
     return send_from_directory(app.static_folder, filename)
 
-if __name__ == '__main__':
-    app.run(debug=True)
-    
 @app.route('/test')
 def test():
     return "✅ /test route is working!"
 
-
+# ✅ Run app
+if __name__ == '__main__':
+    app.run(debug=True)
