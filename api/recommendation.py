@@ -1,8 +1,6 @@
-# ✅ Imports
 from flask import Blueprint, request, jsonify
 from api.db import get_db_connection
 
-# ✅ Blueprint first!
 recommendation_routes = Blueprint('recommendation', __name__)
 
 # ✅ Validation helper
@@ -15,7 +13,7 @@ def validate_user_input(subject_ids, tech_skills, non_tech_skills):
         return "Please select between 3 and 5 non-technical skills."
     return None
 
-# ✅ Fit Level Helper
+# ✅ Fit Level helper
 def get_fit_level(matched_score, min_fit_score):
     if matched_score >= min_fit_score * 1.25:
         return "Perfect Match"
@@ -45,75 +43,72 @@ def get_recommendations():
         if validation_error:
             return jsonify({"success": False, "message": validation_error}), 400
 
-        # ✅ Fetch prerequisite weights
+        # ✅ Fetch prerequisite weights + positions together
         cursor.execute("""
             SELECT 
                 pp.position_id,
                 pp.prerequisite_id,
-                pp.weight
+                pp.weight,
+                p.name AS position_name,
+                p.min_fit_score
             FROM position_prerequisites pp
+            JOIN positions p ON pp.position_id = p.id
         """)
         all_data = cursor.fetchall()
 
-        # ✅ Sum weights
+        # ✅ Prepare scoring
         position_scores = {}
         for row in all_data:
             pos_id = row['position_id']
             preq_id = row['prerequisite_id']
             weight = row['weight']
+            pos_name = row['position_name']
+            min_fit_score = row['min_fit_score'] or 0
 
             if pos_id not in position_scores:
                 position_scores[pos_id] = {
+                    "position_name": pos_name,
+                    "min_fit_score": min_fit_score,
                     "matched_weight": 0,
                     "total_weight": 0
                 }
 
             position_scores[pos_id]['total_weight'] += weight
-
             if preq_id in all_selected_ids:
                 position_scores[pos_id]['matched_weight'] += weight
 
-        # ✅ Load positions with min_fit_score
-        cursor.execute("SELECT id, name, min_fit_score FROM positions")
-        all_positions = {
-            row['id']: {
-                'name': row['name'],
-                'min_fit_score': row['min_fit_score'] or 0
-            } for row in cursor.fetchall()
-        }
-
-        # ✅ Prepare output
+        # ✅ Analyze matches
         final_output = []
         unmatched_positions = []
 
-        for pos_id, score_data in position_scores.items():
-            matched_score = score_data['matched_weight']
-            total_score = score_data['total_weight']
-            position = all_positions.get(pos_id)
+        for pos_id, data in position_scores.items():
+            matched_score = data['matched_weight']
+            total_score = data['total_weight']
+            min_fit_score = data['min_fit_score']
+            pos_name = data['position_name']
 
-            if not position or position['min_fit_score'] <= 0:
-                continue  # Skip irrelevant positions
+            if min_fit_score <= 0:
+                continue  # Ignore positions with no min_fit_score
 
-            fit_level = get_fit_level(matched_score, position['min_fit_score'])
-            is_recommended = matched_score >= position['min_fit_score']
-            reason = "✓ Recommended" if is_recommended else "✗ Not Recommended — below min_fit_score"
+            fit_level = get_fit_level(matched_score, min_fit_score)
+            is_recommended = matched_score >= min_fit_score
 
             debug_info = {
-                'position_name': position['name'],
+                'position_name': pos_name,
                 'matched_score': matched_score,
                 'total_required_score': total_score,
-                'min_fit_score': position['min_fit_score'],
-                'percentage_of_total': round((matched_score / total_score) * 100, 2) if total_score > 0 else 0,
-                'match_vs_min_score_percent': round((matched_score / position['min_fit_score']) * 100, 2) if position['min_fit_score'] > 0 else 0,
+                'min_fit_score': min_fit_score,
+                'percentage_of_total': round((matched_score / total_score) * 100, 2) if total_score else 0,
+                'match_vs_min_score_percent': round((matched_score / min_fit_score) * 100, 2) if min_fit_score else 0,
                 'fit_level': fit_level,
                 'recommended': is_recommended,
-                'reason': reason
+                'reason': "✓ Recommended" if is_recommended else "✗ Not Recommended — below min_fit_score"
             }
 
             if is_recommended:
                 result = {
                     'position_id': pos_id,
-                    'position_name': position['name'],
+                    'position_name': pos_name,
                     'match_score': matched_score,
                     'fit_level': fit_level
                 }
@@ -122,26 +117,24 @@ def get_recommendations():
                 final_output.append(result)
             else:
                 unmatched_positions.append({
-                    'position_name': position['name'],
+                    'position_name': pos_name,
                     'matched_score': matched_score,
-                    'min_fit_score': position['min_fit_score']
+                    'min_fit_score': min_fit_score
                 })
 
             if debug_mode:
-                print(f"\n📌 {position['name']} — Score: {matched_score}/{total_score}")
-                print(f"   ➤ Fit Level: {fit_level} — {reason}")
+                print(f"\n📌 {pos_name} — Score: {matched_score}/{total_score}")
+                print(f"   ➤ Fit Level: {fit_level} — {debug_info['reason']}")
 
-        # ✅ Sort final output
+        # ✅ Sort matches by score
         final_output.sort(key=lambda x: x['match_score'], reverse=True)
 
-        # ✅ Check if fallback is needed
+        # ✅ Determine fallback
         fallback_triggered = len(final_output) == 0
 
         if fallback_triggered:
             if debug_mode:
-                print("\n⚠️ No positions met min_fit_score — fallback logic triggered.")
-                for entry in unmatched_positions:
-                    print(f"   ✗ {entry['position_name']} — {entry['matched_score']} < min_fit {entry['min_fit_score']}")
+                print("\n⚠️ No positions met min_fit_score — fallback triggered.")
             return jsonify({
                 "note": "💡 No positions matched your selections.",
                 "suggestion": "Consider selecting more relevant subjects or skills to improve your match.",
@@ -152,7 +145,7 @@ def get_recommendations():
                 "success": True
             }), 200
 
-        # ✅ Otherwise, return normal recommended positions
+        # ✅ Return normal recommendations
         return jsonify({
             "success": True,
             "fallback_possible": False,
