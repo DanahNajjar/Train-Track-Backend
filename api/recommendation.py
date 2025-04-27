@@ -57,18 +57,20 @@ def get_recommendations():
         all_data = cursor.fetchall()
 
         # ✅ Fetch prerequisite types (correctly using `type`)
-        cursor.execute("SELECT id, type FROM prerequisites")
-        prerequisite_types = {row['id']: row['type'] for row in cursor.fetchall()}
+        cursor.execute("SELECT id, type, name FROM prerequisites")
+        prerequisite_info = {row['id']: {"type": row['type'], "name": row['name']} for row in cursor.fetchall()}
 
         # ✅ Prepare scoring
         position_scores = {}
+        position_prerequisites = {}
+
         for row in all_data:
             pos_id = row['position_id']
             preq_id = row['prerequisite_id']
             weight = row['weight']
             pos_name = row['position_name']
             min_fit_score = row['min_fit_score'] or 0
-            preq_type = prerequisite_types.get(preq_id)
+            preq_info = prerequisite_info.get(preq_id)
 
             if pos_id not in position_scores:
                 position_scores[pos_id] = {
@@ -83,25 +85,20 @@ def get_recommendations():
                     "nontech_matched_weight": 0,
                     "nontech_total_weight": 0
                 }
+                position_prerequisites[pos_id] = []
 
             position_scores[pos_id]['total_weight'] += weight
-
-            # Group weights
-            if preq_type == "Subject":
-                position_scores[pos_id]['subject_total_weight'] += weight
-            elif preq_type == "Technical Skill":
-                position_scores[pos_id]['tech_total_weight'] += weight
-            elif preq_type == "Non-Technical Skill":
-                position_scores[pos_id]['nontech_total_weight'] += weight
+            position_prerequisites[pos_id].append((preq_id, weight))
 
             if preq_id in all_selected_ids:
                 position_scores[pos_id]['matched_weight'] += weight
-                if preq_type == "Subject":
-                    position_scores[pos_id]['subject_matched_weight'] += weight
-                elif preq_type == "Technical Skill":
-                    position_scores[pos_id]['tech_matched_weight'] += weight
-                elif preq_type == "Non-Technical Skill":
-                    position_scores[pos_id]['nontech_matched_weight'] += weight
+                if preq_info:
+                    if preq_info['type'] == "Subject":
+                        position_scores[pos_id]['subject_matched_weight'] += weight
+                    elif preq_info['type'] == "Technical Skill":
+                        position_scores[pos_id]['tech_matched_weight'] += weight
+                    elif preq_info['type'] == "Non-Technical Skill":
+                        position_scores[pos_id]['nontech_matched_weight'] += weight
 
         # ✅ Analyze matches
         final_output = []
@@ -147,34 +144,64 @@ def get_recommendations():
                 final_output.append(result)
             else:
                 unmatched_positions.append({
+                    'position_id': pos_id,
                     'position_name': pos_name,
                     'matched_score': matched_score,
-                    'min_fit_score': min_fit_score
+                    'total_weight': total_score
                 })
 
             if debug_mode:
                 print(f"\n📌 {pos_name} — Score: {matched_score}/{total_score}")
                 print(f"   ➤ Fit Level: {fit_level} — {debug_info['reason']}")
 
-        # ✅ Sort matches
         final_output.sort(key=lambda x: x['match_score'], reverse=True)
 
-        # ✅ Check fallback
+        # ✅ If fallback triggered (no match)
         fallback_triggered = len(final_output) == 0
 
         if fallback_triggered:
             if debug_mode:
                 print("\n⚠️ No positions met min_fit_score — fallback triggered.")
+
+            # Normalize unmatched positions
+            for pos in unmatched_positions:
+                pos['normalized_score'] = round((pos['matched_score'] / pos['total_weight']) * 100, 2) if pos['total_weight'] else 0
+
+            unmatched_positions.sort(key=lambda x: x['normalized_score'], reverse=True)
+
+            top_fallback_positions = unmatched_positions[:2]
+
+            improvement_paths = {
+                "subjects": [],
+                "technical_skills": [],
+                "non_technical_skills": []
+            }
+
+            for pos in top_fallback_positions:
+                pos_id = pos['position_id']
+                for preq_id, weight in position_prerequisites[pos_id]:
+                    if preq_id not in all_selected_ids:
+                        preq_info = prerequisite_info.get(preq_id)
+                        if preq_info:
+                            skill_entry = {
+                                "skill_id": preq_id,
+                                "skill_name": preq_info['name']
+                            }
+                            if preq_info['type'] == "Subject" and skill_entry not in improvement_paths["subjects"]:
+                                improvement_paths["subjects"].append(skill_entry)
+                            elif preq_info['type'] == "Technical Skill" and skill_entry not in improvement_paths["technical_skills"]:
+                                improvement_paths["technical_skills"].append(skill_entry)
+                            elif preq_info['type'] == "Non-Technical Skill" and skill_entry not in improvement_paths["non_technical_skills"]:
+                                improvement_paths["non_technical_skills"].append(skill_entry)
+
             return jsonify({
-                "note": "💡 No positions matched your selections.",
-                "suggestion": "Consider selecting more relevant subjects or skills to improve your match.",
-                "fallback_possible": True,
+                "success": True,
                 "fallback_triggered": True,
-                "unmatched_positions": unmatched_positions,
-                "recommended_positions": [],
-                "success": True
+                "message": "💬 You're close! Add a few more skills or subjects to complete your match.",
+                "improvement_paths": improvement_paths
             }), 200
 
+        # ✅ Otherwise normal match return
         return jsonify({
             "success": True,
             "fallback_possible": False,
