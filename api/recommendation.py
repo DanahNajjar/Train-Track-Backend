@@ -56,6 +56,10 @@ def get_recommendations():
         """)
         all_data = cursor.fetchall()
 
+        # ✅ Fetch prerequisite types (Subject, Technical Skill, Non-Technical Skill)
+        cursor.execute("SELECT id, prerequisite_type FROM prerequisites")
+        prerequisite_types = {row['id']: row['prerequisite_type'] for row in cursor.fetchall()}
+
         # ✅ Prepare scoring
         position_scores = {}
         for row in all_data:
@@ -64,18 +68,40 @@ def get_recommendations():
             weight = row['weight']
             pos_name = row['position_name']
             min_fit_score = row['min_fit_score'] or 0
+            preq_type = prerequisite_types.get(preq_id)
 
             if pos_id not in position_scores:
                 position_scores[pos_id] = {
                     "position_name": pos_name,
                     "min_fit_score": min_fit_score,
                     "matched_weight": 0,
-                    "total_weight": 0
+                    "total_weight": 0,
+                    "subject_matched_weight": 0,
+                    "subject_total_weight": 0,
+                    "tech_matched_weight": 0,
+                    "tech_total_weight": 0,
+                    "nontech_matched_weight": 0,
+                    "nontech_total_weight": 0
                 }
 
             position_scores[pos_id]['total_weight'] += weight
+
+            # Group weights
+            if preq_type == "Subject":
+                position_scores[pos_id]['subject_total_weight'] += weight
+            elif preq_type == "Technical Skill":
+                position_scores[pos_id]['tech_total_weight'] += weight
+            elif preq_type == "Non-Technical Skill":
+                position_scores[pos_id]['nontech_total_weight'] += weight
+
             if preq_id in all_selected_ids:
                 position_scores[pos_id]['matched_weight'] += weight
+                if preq_type == "Subject":
+                    position_scores[pos_id]['subject_matched_weight'] += weight
+                elif preq_type == "Technical Skill":
+                    position_scores[pos_id]['tech_matched_weight'] += weight
+                elif preq_type == "Non-Technical Skill":
+                    position_scores[pos_id]['nontech_matched_weight'] += weight
 
         # ✅ Analyze matches
         final_output = []
@@ -88,7 +114,7 @@ def get_recommendations():
             pos_name = data['position_name']
 
             if min_fit_score <= 0:
-                continue  # Ignore positions with no min_fit_score
+                continue  # Ignore irrelevant positions
 
             fit_level = get_fit_level(matched_score, min_fit_score)
             is_recommended = matched_score >= min_fit_score
@@ -110,7 +136,11 @@ def get_recommendations():
                     'position_id': pos_id,
                     'position_name': pos_name,
                     'match_score': matched_score,
-                    'fit_level': fit_level
+                    'fit_level': fit_level,
+                    'overall_fit_percentage': round((matched_score / total_score) * 100, 2) if total_score else 0,
+                    'subject_fit_percentage': round((data['subject_matched_weight'] / data['subject_total_weight']) * 100, 2) if data['subject_total_weight'] else 0,
+                    'technical_skill_fit_percentage': round((data['tech_matched_weight'] / data['tech_total_weight']) * 100, 2) if data['tech_total_weight'] else 0,
+                    'non_technical_skill_fit_percentage': round((data['nontech_matched_weight'] / data['nontech_total_weight']) * 100, 2) if data['nontech_total_weight'] else 0
                 }
                 if debug_mode:
                     result['debug'] = debug_info
@@ -126,10 +156,10 @@ def get_recommendations():
                 print(f"\n📌 {pos_name} — Score: {matched_score}/{total_score}")
                 print(f"   ➤ Fit Level: {fit_level} — {debug_info['reason']}")
 
-        # ✅ Sort matches by score
+        # ✅ Sort matches
         final_output.sort(key=lambda x: x['match_score'], reverse=True)
 
-        # ✅ Determine fallback
+        # ✅ Check fallback
         fallback_triggered = len(final_output) == 0
 
         if fallback_triggered:
@@ -145,7 +175,6 @@ def get_recommendations():
                 "success": True
             }), 200
 
-        # ✅ Return normal recommendations
         return jsonify({
             "success": True,
             "fallback_possible": False,
