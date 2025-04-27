@@ -56,9 +56,9 @@ def get_recommendations():
         """)
         all_data = cursor.fetchall()
 
-        # ✅ Fetch prerequisite types (Subject, Technical Skill, Non-Technical Skill)
-        cursor.execute("SELECT id, prerequisite_type FROM prerequisites")
-        prerequisite_types = {row['id']: row['prerequisite_type'] for row in cursor.fetchall()}
+        # ✅ Fetch prerequisite types (correctly using `type`)
+        cursor.execute("SELECT id, type FROM prerequisites")
+        prerequisite_types = {row['id']: row['type'] for row in cursor.fetchall()}
 
         # ✅ Prepare scoring
         position_scores = {}
