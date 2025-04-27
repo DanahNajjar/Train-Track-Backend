@@ -1,3 +1,30 @@
+# ✅ Imports
+from flask import Blueprint, request, jsonify
+from api.db import get_db_connection
+
+# ✅ Blueprint first!
+recommendation_routes = Blueprint('recommendation', __name__)
+
+# ✅ Validation helper
+def validate_user_input(subject_ids, tech_skills, non_tech_skills):
+    if not 3 <= len(subject_ids) <= 7:
+        return "Please select between 3 and 7 subjects."
+    if not 3 <= len(tech_skills) <= 8:
+        return "Please select between 3 and 8 technical skills."
+    if not 3 <= len(non_tech_skills) <= 5:
+        return "Please select between 3 and 5 non-technical skills."
+    return None
+
+# ✅ Fit Level Helper
+def get_fit_level(matched_score, min_fit_score):
+    if matched_score >= min_fit_score * 1.25:
+        return "Perfect Match"
+    elif matched_score >= min_fit_score:
+        return "Partial Match"
+    else:
+        return "No Match"
+
+# ✅ Main Recommendation Endpoint
 @recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
     data = request.get_json()
@@ -71,7 +98,6 @@ def get_recommendations():
             is_recommended = matched_score >= position['min_fit_score']
             reason = "✓ Recommended" if is_recommended else "✗ Not Recommended — below min_fit_score"
 
-            # Debug info block
             debug_info = {
                 'position_name': position['name'],
                 'matched_score': matched_score,
@@ -105,9 +131,10 @@ def get_recommendations():
                 print(f"\n📌 {position['name']} — Score: {matched_score}/{total_score}")
                 print(f"   ➤ Fit Level: {fit_level} — {reason}")
 
+        # ✅ Sort final output
         final_output.sort(key=lambda x: x['match_score'], reverse=True)
 
-        # ✅ Check if fallback is needed (no positions met min_fit_score)
+        # ✅ Check if fallback is needed
         fallback_triggered = len(final_output) == 0
 
         if fallback_triggered:
