@@ -1,28 +1,3 @@
-from flask import Blueprint, request, jsonify
-from api.db import get_db_connection
-
-recommendation_routes = Blueprint('recommendation', __name__)
-
-# ✅ Validation helper
-def validate_user_input(subject_ids, tech_skills, non_tech_skills):
-    if not 3 <= len(subject_ids) <= 7:
-        return "Please select between 3 and 7 subjects."
-    if not 3 <= len(tech_skills) <= 8:
-        return "Please select between 3 and 8 technical skills."
-    if not 3 <= len(non_tech_skills) <= 5:
-        return "Please select between 3 and 5 non-technical skills."
-    return None
-
-# ✅ Fit Level Helper
-def get_fit_level(matched_score, min_fit_score):
-    if matched_score >= min_fit_score * 1.25:
-        return "Perfect Match"
-    elif matched_score >= min_fit_score:
-        return "Partial Match"
-    else:
-        return "No Match"
-
-# ✅ Main Recommendation Endpoint
 @recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
     data = request.get_json()
@@ -80,7 +55,7 @@ def get_recommendations():
             } for row in cursor.fetchall()
         }
 
-        # ✅ Final output
+        # ✅ Prepare output
         final_output = []
         unmatched_positions = []
 
@@ -132,15 +107,17 @@ def get_recommendations():
 
         final_output.sort(key=lambda x: x['match_score'], reverse=True)
 
-        # ✅ Return fallback response if nothing matched
-        if len(final_output) == 0:
+        # ✅ Check if fallback is needed (no positions met min_fit_score)
+        fallback_triggered = len(final_output) == 0
+
+        if fallback_triggered:
             if debug_mode:
-                print("\n⚠️ No positions matched — fallback logic placeholder triggered.")
+                print("\n⚠️ No positions met min_fit_score — fallback logic triggered.")
                 for entry in unmatched_positions:
                     print(f"   ✗ {entry['position_name']} — {entry['matched_score']} < min_fit {entry['min_fit_score']}")
             return jsonify({
-                "note": "💡 No positions matched.",
-                "suggestion": "Consider selecting more relevant subjects or skills.",
+                "note": "💡 No positions matched your selections.",
+                "suggestion": "Consider selecting more relevant subjects or skills to improve your match.",
                 "fallback_possible": True,
                 "fallback_triggered": True,
                 "unmatched_positions": unmatched_positions,
@@ -148,9 +125,11 @@ def get_recommendations():
                 "success": True
             }), 200
 
-        # ✅ Return successful matches
+        # ✅ Otherwise, return normal recommended positions
         return jsonify({
             "success": True,
+            "fallback_possible": False,
+            "fallback_triggered": False,
             "recommended_positions": final_output
         }), 200
 
