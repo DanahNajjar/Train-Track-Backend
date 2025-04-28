@@ -213,43 +213,51 @@ def get_non_technical_skills():
             connection.close()
 
 # ✅ Step 5: Save Advanced Preferences
-@wizard_routes.route('/preferences', methods=['POST'])
-def save_advanced_preferences():
+@wizard_routes.route('/preferences', methods=['GET'])
+def get_advanced_preferences():
     try:
-        data = request.get_json()
-        training_mode = data.get('training_mode')
-        company_size = data.get('preferred_company_size')
-        culture = data.get('preferred_culture')
-        industry = data.get('preferred_industry')
+        # Assuming the user is logged in and their user_id is available (for example, from a session or JWT token)
+        user_id = request.args.get('user_id')  # You can also get user_id from the session
 
-        if training_mode is None or company_size is None or culture is None or industry is None:
-            return jsonify({"success": False, "message": "All fields are required."}), 400
+        if not user_id:
+            return jsonify({"success": False, "message": "User ID is required."}), 400
 
-        if training_mode not in ['Onsite', 'Remote', 'Hybrid']:
-            return jsonify({"success": False, "message": "Invalid training mode."}), 400
+        # Fetch the preferences from the database
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
 
-        if company_size not in ['Small', 'Medium', 'Large']:
-            return jsonify({"success": False, "message": "Invalid company size."}), 400
+        cursor.execute("""
+            SELECT training_mode, company_size, culture, industry
+            FROM user_preferences
+            WHERE user_id = %s
+        """, (user_id,))
+        preferences = cursor.fetchone()
 
-        if not isinstance(culture, list) or len(culture) > 2:
-            return jsonify({"success": False, "message": "Culture must be a list with up to 2 values."}), 400
+        if not preferences:
+            return jsonify({"success": False, "message": "Preferences not found for this user."}), 404
 
-        if not isinstance(industry, list) or len(industry) > 2:
-            return jsonify({"success": False, "message": "Industry must be a list with up to 2 values."}), 400
+        # Parse the culture and industry from the stored strings (assuming they were saved as comma-separated)
+        culture_list = preferences['culture'].split(',')
+        industry_list = preferences['industry'].split(',')
 
         return jsonify({
             "success": True,
-            "message": "Preferences saved.",
             "data": {
-                "training_mode": training_mode,
-                "preferred_company_size": company_size,
-                "preferred_culture": culture,
-                "preferred_industry": industry
+                "training_mode": preferences['training_mode'],
+                "company_size": preferences['company_size'],
+                "preferred_culture": culture_list,
+                "preferred_industry": industry_list
             }
         }), 200
 
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+
+    finally:
+        if connection.is_connected():
+            cursor.close()
+            connection.close()
+
 
 # ✅ Step 6: Return Wizard Summary (Organized by Wizard Flow)
 @wizard_routes.route('/user-input-summary', methods=['POST'])
