@@ -87,26 +87,35 @@ def get_recommendations():
                     "nontech_total_weight": 0
                 }
 
-            # ✅ Always add to total weights
+            # 🛠 DEBUGGING START (print per prerequisite)
+            print(f"\n[Position {pos_id}] Checking prerequisite: {preq_id} - {preq_info['name']} ({preq_info['type']}) with weight {weight}")
+
             position_scores[pos_id]['total_weight'] += weight
 
             if preq_info['type'] == "Subject":
                 position_scores[pos_id]['subject_total_weight'] += weight
+                print("  -> Added to SUBJECT total weight.")
                 if preq_id in subject_ids:
+                    print("  -> Matched SUBJECT! Adding to subject_matched_weight.")
                     position_scores[pos_id]['subject_matched_weight'] += weight
                     position_scores[pos_id]['matched_weight'] += weight
 
             elif preq_info['type'] == "Technical Skill":
                 position_scores[pos_id]['tech_total_weight'] += weight
+                print("  -> Added to TECH total weight.")
                 if preq_id in tech_skills:
+                    print("  -> Matched TECH SKILL! Adding to tech_matched_weight.")
                     position_scores[pos_id]['tech_matched_weight'] += weight
                     position_scores[pos_id]['matched_weight'] += weight
 
             elif preq_info['type'] == "Non-Technical Skill":
                 position_scores[pos_id]['nontech_total_weight'] += weight
+                print("  -> Added to NON-TECH total weight.")
                 if preq_id in non_tech_skills:
+                    print("  -> Matched NON-TECH SKILL! Adding to nontech_matched_weight.")
                     position_scores[pos_id]['nontech_matched_weight'] += weight
                     position_scores[pos_id]['matched_weight'] += weight
+            # 🛠 DEBUGGING END
 
         # ✅ Analyze matches
         final_output = []
@@ -116,6 +125,17 @@ def get_recommendations():
             total_score = data['total_weight']
             min_fit_score = data['min_fit_score']
             pos_name = data['position_name']
+
+            # 🛠 DEBUGGING TOTALS AFTER POSITION
+            print(f"\n[DEBUG] Position: {pos_name} ({pos_id})")
+            print(f"  Matched Score: {matched_score}")
+            print(f"  Total Weight: {total_score}")
+            print(f"  Subject Matched Weight: {data['subject_matched_weight']}")
+            print(f"  Subject Total Weight: {data['subject_total_weight']}")
+            print(f"  Tech Matched Weight: {data['tech_matched_weight']}")
+            print(f"  Tech Total Weight: {data['tech_total_weight']}")
+            print(f"  Non-Tech Matched Weight: {data['nontech_matched_weight']}")
+            print(f"  Non-Tech Total Weight: {data['nontech_total_weight']}\n")
 
             if min_fit_score <= 0:
                 continue
