@@ -1,9 +1,9 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from api.db import get_db_connection
 
 recommendation_routes = Blueprint('recommendation', __name__)
 
-# ✅ Validation helper
+# Validation helper
 def validate_user_input(subject_ids, tech_skills, non_tech_skills):
     if not 3 <= len(subject_ids) <= 7:
         return "Please select between 3 and 7 subjects."
@@ -13,7 +13,7 @@ def validate_user_input(subject_ids, tech_skills, non_tech_skills):
         return "Please select between 3 and 5 non-technical skills."
     return None
 
-# ✅ Fit Level helper
+# Fit Level helper
 def get_fit_level(matched_score, min_fit_score):
     if matched_score >= min_fit_score * 1.25:
         return "Perfect Match"
@@ -22,9 +22,11 @@ def get_fit_level(matched_score, min_fit_score):
     else:
         return "No Match"
 
-# ✅ Main Recommendation Endpoint
+# Main Recommendation Endpoint
 @recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
+    current_app.logger.info("🚀 Processing started for recommendations...")
+
     data = request.get_json()
 
     try:
@@ -36,12 +38,20 @@ def get_recommendations():
         tech_skills = set(data.get("technical_skills", []))
         non_tech_skills = set(data.get("non_technical_skills", []))
 
+        current_app.logger.info(f"Subjects selected: {subject_ids}")
+        current_app.logger.info(f"Technical Skills selected: {tech_skills}")
+        current_app.logger.info(f"Non-Technical Skills selected: {non_tech_skills}")
+
         # ✅ Validate Inputs
         validation_error = validate_user_input(subject_ids, tech_skills, non_tech_skills)
         if validation_error:
             return jsonify({"success": False, "message": validation_error}), 400
 
-        # ✅ Fetch prerequisite weights + positions
+        # ✅ Fetch prerequisite info
+        cursor.execute("SELECT id, type FROM prerequisites")
+        prerequisite_info = {int(row['id']): row['type'] for row in cursor.fetchall()}
+
+        # ✅ Fetch position prerequisites
         cursor.execute("""
             SELECT 
                 pp.position_id,
@@ -52,115 +62,88 @@ def get_recommendations():
             FROM position_prerequisites pp
             JOIN positions p ON pp.position_id = p.id
         """)
-        all_data = cursor.fetchall()
+        all_prerequisites = cursor.fetchall()
 
-        # ✅ Fetch prerequisite types and names
-        cursor.execute("SELECT id, type, name FROM prerequisites")
-        prerequisite_info = {row['id']: {"type": row['type'], "name": row['name']} for row in cursor.fetchall()}
-
-        # ✅ Prepare scoring per position
-        position_scores = {}
-
-        for row in all_data:
+        # ✅ Group by position
+        positions = {}
+        for row in all_prerequisites:
             pos_id = row['position_id']
-            preq_id = row['prerequisite_id']
+            preq_id = int(row['prerequisite_id'])
             weight = row['weight']
-            pos_name = row['position_name']
-            min_fit_score = row['min_fit_score'] or 0
-            preq_info = prerequisite_info.get(preq_id)
+            type_ = prerequisite_info.get(preq_id)
 
-            if not preq_info:
-                continue
+            if not type_ or type_ == "Major":
+                continue  # ❌ Skip if Major or not found
 
-            # Initialize position if first time
-            if pos_id not in position_scores:
-                position_scores[pos_id] = {
-                    "position_name": pos_name,
-                    "min_fit_score": min_fit_score,
-                    "matched_weight": 0,
-                    "total_weight": 0,
-                    "subject_matched_weight": 0,
-                    "subject_total_weight": 0,
-                    "tech_matched_weight": 0,
-                    "tech_total_weight": 0,
-                    "nontech_matched_weight": 0,
-                    "nontech_total_weight": 0
+            if pos_id not in positions:
+                positions[pos_id] = {
+                    "position_name": row['position_name'],
+                    "min_fit_score": row['min_fit_score'] or 0,
+                    "subjects": [],
+                    "technical_skills": [],
+                    "non_technical_skills": []
                 }
 
-            # 🛠 DEBUGGING START (print per prerequisite)
-            print(f"\n[Position {pos_id}] Checking prerequisite: {preq_id} - {preq_info['name']} ({preq_info['type']}) with weight {weight}")
-
-            position_scores[pos_id]['total_weight'] += weight
-
-            if preq_info['type'] == "Subject":
-                position_scores[pos_id]['subject_total_weight'] += weight
-                print("  -> Added to SUBJECT total weight.")
-                if preq_id in subject_ids:
-                    print("  -> Matched SUBJECT! Adding to subject_matched_weight.")
-                    position_scores[pos_id]['subject_matched_weight'] += weight
-                    position_scores[pos_id]['matched_weight'] += weight
-
-            elif preq_info['type'] == "Technical Skill":
-                position_scores[pos_id]['tech_total_weight'] += weight
-                print("  -> Added to TECH total weight.")
-                if preq_id in tech_skills:
-                    print("  -> Matched TECH SKILL! Adding to tech_matched_weight.")
-                    position_scores[pos_id]['tech_matched_weight'] += weight
-                    position_scores[pos_id]['matched_weight'] += weight
-
-            elif preq_info['type'] == "Non-Technical Skill":
-                position_scores[pos_id]['nontech_total_weight'] += weight
-                print("  -> Added to NON-TECH total weight.")
-                if preq_id in non_tech_skills:
-                    print("  -> Matched NON-TECH SKILL! Adding to nontech_matched_weight.")
-                    position_scores[pos_id]['nontech_matched_weight'] += weight
-                    position_scores[pos_id]['matched_weight'] += weight
-            # 🛠 DEBUGGING END
+            if type_ == "Subject":
+                positions[pos_id]["subjects"].append((preq_id, weight))
+            elif type_ == "Technical Skill":
+                positions[pos_id]["technical_skills"].append((preq_id, weight))
+            elif type_ == "Non-Technical Skill":
+                positions[pos_id]["non_technical_skills"].append((preq_id, weight))
 
         # ✅ Analyze matches
         final_output = []
 
-        for pos_id, data in position_scores.items():
-            matched_score = data['matched_weight']
-            total_score = data['total_weight']
-            min_fit_score = data['min_fit_score']
-            pos_name = data['position_name']
+        for pos_id, pos_data in positions.items():
+            current_app.logger.info(f"=== Checking Position: {pos_data['position_name']} (ID: {pos_id}) ===")
+            current_app.logger.info(f"Subjects required: {pos_data['subjects']}")
+            current_app.logger.info(f"Technical Skills required: {pos_data['technical_skills']}")
+            current_app.logger.info(f"Non-Technical Skills required: {pos_data['non_technical_skills']}")
 
-            # 🛠 DEBUGGING TOTALS AFTER POSITION
-            print(f"\n[DEBUG] Position: {pos_name} ({pos_id})")
-            print(f"  Matched Score: {matched_score}")
-            print(f"  Total Weight: {total_score}")
-            print(f"  Subject Matched Weight: {data['subject_matched_weight']}")
-            print(f"  Subject Total Weight: {data['subject_total_weight']}")
-            print(f"  Tech Matched Weight: {data['tech_matched_weight']}")
-            print(f"  Tech Total Weight: {data['tech_total_weight']}")
-            print(f"  Non-Tech Matched Weight: {data['nontech_matched_weight']}")
-            print(f"  Non-Tech Total Weight: {data['nontech_total_weight']}\n")
+            # Calculating the weights for each category
+            total_subject_weight = sum(weight for _, weight in pos_data['subjects'])
+            total_tech_weight = sum(weight for _, weight in pos_data['technical_skills'])
+            total_nontech_weight = sum(weight for _, weight in pos_data['non_technical_skills'])
 
-            if min_fit_score <= 0:
+            matched_subject_weight = sum(weight for prereq_id, weight in pos_data['subjects'] if prereq_id in subject_ids)
+            matched_tech_weight = sum(weight for prereq_id, weight in pos_data['technical_skills'] if prereq_id in tech_skills)
+            matched_nontech_weight = sum(weight for prereq_id, weight in pos_data['non_technical_skills'] if prereq_id in non_tech_skills)
+
+            total_weight = total_subject_weight + total_tech_weight + total_nontech_weight
+            matched_weight = matched_subject_weight + matched_tech_weight + matched_nontech_weight
+
+            current_app.logger.info(f"Matched subject weight: {matched_subject_weight}/{total_subject_weight}")
+            current_app.logger.info(f"Matched tech weight: {matched_tech_weight}/{total_tech_weight}")
+            current_app.logger.info(f"Matched nontech weight: {matched_nontech_weight}/{total_nontech_weight}")
+            current_app.logger.info(f"Total matched weight: {matched_weight}/{total_weight}")
+
+            if pos_data['min_fit_score'] <= 0:
                 continue
 
-            fit_level = get_fit_level(matched_score, min_fit_score)
-            is_recommended = matched_score >= min_fit_score
+            fit_level = get_fit_level(matched_weight, pos_data['min_fit_score'])
+            is_recommended = matched_weight >= pos_data['min_fit_score']
 
             if is_recommended:
                 result = {
                     "position_id": pos_id,
-                    "position_name": pos_name,
-                    "match_score": matched_score,
+                    "position_name": pos_data['position_name'],
+                    "match_score": matched_weight,
                     "fit_level": fit_level,
-                    "overall_fit_percentage": round((matched_score / total_score) * 100, 2) if total_score else 0,
-                    "subject_fit_percentage": round((data['subject_matched_weight'] / data['subject_total_weight']) * 100, 2) if data['subject_total_weight'] else 0,
-                    "technical_skill_fit_percentage": round((data['tech_matched_weight'] / data['tech_total_weight']) * 100, 2) if data['tech_total_weight'] else 0,
-                    "non_technical_skill_fit_percentage": round((data['nontech_matched_weight'] / data['nontech_total_weight']) * 100, 2) if data['nontech_total_weight'] else 0
+                    "overall_fit_percentage": round((matched_weight / total_weight) * 100, 2) if total_weight else 0,
+                    "subject_fit_percentage": round((matched_subject_weight / total_subject_weight) * 100, 2) if total_subject_weight else 0,
+                    "technical_skill_fit_percentage": round((matched_tech_weight / total_tech_weight) * 100, 2) if total_tech_weight else 0,
+                    "non_technical_skill_fit_percentage": round((matched_nontech_weight / total_nontech_weight) * 100, 2) if total_nontech_weight else 0
                 }
-
                 final_output.append(result)
 
-        # ✅ Sort by match_score descending
+            current_app.logger.info(f"✅ Finished analyzing position {pos_data['position_name']}.\n")
+
+        # ✅ Sort results
         final_output.sort(key=lambda x: x['match_score'], reverse=True)
 
         fallback_triggered = len(final_output) == 0
+
+        current_app.logger.info("🏁 Processing ended.\n")
 
         if fallback_triggered:
             return jsonify({
@@ -183,3 +166,5 @@ def get_recommendations():
             "success": False,
             "message": str(e)
         }), 500
+    finally:
+        connection.close()
