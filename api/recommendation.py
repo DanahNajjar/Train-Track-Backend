@@ -58,7 +58,7 @@ def get_recommendations():
         cursor.execute("SELECT id, type, name FROM prerequisites")
         prerequisite_info = {row['id']: {"type": row['type'], "name": row['name']} for row in cursor.fetchall()}
 
-        # ✅ Prepare scoring
+        # ✅ Prepare scoring per position
         position_scores = {}
         position_prerequisites = {}
 
@@ -69,6 +69,9 @@ def get_recommendations():
             pos_name = row['position_name']
             min_fit_score = row['min_fit_score'] or 0
             preq_info = prerequisite_info.get(preq_id)
+
+            if not preq_info:
+                continue  # Skip if prerequisite info not found
 
             if pos_id not in position_scores:
                 position_scores[pos_id] = {
@@ -85,30 +88,30 @@ def get_recommendations():
                 }
                 position_prerequisites[pos_id] = []
 
-            if preq_info and weight > 0:
-                position_scores[pos_id]['total_weight'] += weight
+            # Always increase total weight for each type
+            position_scores[pos_id]['total_weight'] += weight
 
-                if preq_info['type'] == "Subject":
-                    position_scores[pos_id]['subject_total_weight'] += weight
-                    if preq_id in subject_ids:
-                        position_scores[pos_id]['matched_weight'] += weight
-                        position_scores[pos_id]['subject_matched_weight'] += weight
+            if preq_info['type'] == "Subject":
+                position_scores[pos_id]['subject_total_weight'] += weight
+                if preq_id in subject_ids:
+                    position_scores[pos_id]['matched_weight'] += weight
+                    position_scores[pos_id]['subject_matched_weight'] += weight
 
-                elif preq_info['type'] == "Technical Skill":
-                    position_scores[pos_id]['tech_total_weight'] += weight
-                    if preq_id in tech_skills:
-                        position_scores[pos_id]['matched_weight'] += weight
-                        position_scores[pos_id]['tech_matched_weight'] += weight
+            elif preq_info['type'] == "Technical Skill":
+                position_scores[pos_id]['tech_total_weight'] += weight
+                if preq_id in tech_skills:
+                    position_scores[pos_id]['matched_weight'] += weight
+                    position_scores[pos_id]['tech_matched_weight'] += weight
 
-                elif preq_info['type'] == "Non-Technical Skill":
-                    position_scores[pos_id]['nontech_total_weight'] += weight
-                    if preq_id in non_tech_skills:
-                        position_scores[pos_id]['matched_weight'] += weight
-                        position_scores[pos_id]['nontech_matched_weight'] += weight
+            elif preq_info['type'] == "Non-Technical Skill":
+                position_scores[pos_id]['nontech_total_weight'] += weight
+                if preq_id in non_tech_skills:
+                    position_scores[pos_id]['matched_weight'] += weight
+                    position_scores[pos_id]['nontech_matched_weight'] += weight
 
             position_prerequisites[pos_id].append((preq_id, weight))
 
-        # ✅ Analyze matches
+        # ✅ Analyze matches and build final results
         final_output = []
         unmatched_positions = []
 
@@ -119,7 +122,7 @@ def get_recommendations():
             pos_name = data['position_name']
 
             if min_fit_score <= 0:
-                continue
+                continue  # Ignore positions that don't have a valid min fit score
 
             fit_level = get_fit_level(matched_score, min_fit_score)
             is_recommended = matched_score >= min_fit_score
