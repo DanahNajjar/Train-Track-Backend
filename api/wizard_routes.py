@@ -216,30 +216,25 @@ def get_non_technical_skills():
 @wizard_routes.route('/preferences', methods=['GET'])
 def get_advanced_preferences():
     try:
-        # Assuming the user is logged in and their user_id is available (for example, from a session or JWT token)
-        user_id = request.args.get('user_id')  # You can also get user_id from the session
-
-        if not user_id:
-            return jsonify({"success": False, "message": "User ID is required."}), 400
-
         # Fetch the preferences from the database
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
+        # Query for available training modes, company sizes, cultures, and industries
         cursor.execute("""
             SELECT training_mode, company_size, culture, industry
-            FROM user_preferences
-            WHERE user_id = %s
-        """, (user_id,))
+            FROM default_preferences  -- Assuming you have a table or default settings for these preferences
+        """)
         preferences = cursor.fetchone()
 
         if not preferences:
-            return jsonify({"success": False, "message": "Preferences not found for this user."}), 404
+            return jsonify({"success": False, "message": "No preferences found."}), 204  # Changed to 204 No Content
 
-        # Parse the culture and industry from the stored strings (assuming they were saved as comma-separated)
-        culture_list = preferences['culture'].split(',')
-        industry_list = preferences['industry'].split(',')
+        # Parse culture and industry if they exist (assuming comma-separated lists)
+        culture_list = preferences['culture'].split(',') if preferences.get('culture') else []
+        industry_list = preferences['industry'].split(',') if preferences.get('industry') else []
 
+        # Return the preferences as JSON
         return jsonify({
             "success": True,
             "data": {
@@ -251,9 +246,11 @@ def get_advanced_preferences():
         }), 200
 
     except Exception as e:
+        # Return error response if something goes wrong
         return jsonify({"success": False, "message": str(e)}), 500
 
     finally:
+        # Ensure the connection is closed
         if connection.is_connected():
             cursor.close()
             connection.close()
