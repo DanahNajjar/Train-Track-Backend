@@ -60,7 +60,6 @@ def get_recommendations():
 
         # ✅ Prepare scoring per position
         position_scores = {}
-        position_prerequisites = {}
 
         for row in all_data:
             pos_id = row['position_id']
@@ -71,8 +70,9 @@ def get_recommendations():
             preq_info = prerequisite_info.get(preq_id)
 
             if not preq_info:
-                continue  # Skip if prerequisite info not found
+                continue
 
+            # Initialize position if first time
             if pos_id not in position_scores:
                 position_scores[pos_id] = {
                     "position_name": pos_name,
@@ -86,34 +86,30 @@ def get_recommendations():
                     "nontech_matched_weight": 0,
                     "nontech_total_weight": 0
                 }
-                position_prerequisites[pos_id] = []
 
-            # Always increase total weight for each type
+            # ✅ Always add to total weights
             position_scores[pos_id]['total_weight'] += weight
 
             if preq_info['type'] == "Subject":
                 position_scores[pos_id]['subject_total_weight'] += weight
                 if preq_id in subject_ids:
-                    position_scores[pos_id]['matched_weight'] += weight
                     position_scores[pos_id]['subject_matched_weight'] += weight
+                    position_scores[pos_id]['matched_weight'] += weight
 
             elif preq_info['type'] == "Technical Skill":
                 position_scores[pos_id]['tech_total_weight'] += weight
                 if preq_id in tech_skills:
-                    position_scores[pos_id]['matched_weight'] += weight
                     position_scores[pos_id]['tech_matched_weight'] += weight
+                    position_scores[pos_id]['matched_weight'] += weight
 
             elif preq_info['type'] == "Non-Technical Skill":
                 position_scores[pos_id]['nontech_total_weight'] += weight
                 if preq_id in non_tech_skills:
-                    position_scores[pos_id]['matched_weight'] += weight
                     position_scores[pos_id]['nontech_matched_weight'] += weight
+                    position_scores[pos_id]['matched_weight'] += weight
 
-            position_prerequisites[pos_id].append((preq_id, weight))
-
-        # ✅ Analyze matches and build final results
+        # ✅ Analyze matches
         final_output = []
-        unmatched_positions = []
 
         for pos_id, data in position_scores.items():
             matched_score = data['matched_weight']
@@ -122,41 +118,26 @@ def get_recommendations():
             pos_name = data['position_name']
 
             if min_fit_score <= 0:
-                continue  # Ignore positions that don't have a valid min fit score
+                continue
 
             fit_level = get_fit_level(matched_score, min_fit_score)
             is_recommended = matched_score >= min_fit_score
 
             if is_recommended:
                 result = {
-                    'position_id': pos_id,
-                    'position_name': pos_name,
-                    'match_score': matched_score,
-                    'fit_level': fit_level,
-                    'overall_fit_percentage': round((matched_score / total_score) * 100, 2) if total_score else 0,
-                    'subject_fit_percentage': 0,
-                    'technical_skill_fit_percentage': 0,
-                    'non_technical_skill_fit_percentage': 0
+                    "position_id": pos_id,
+                    "position_name": pos_name,
+                    "match_score": matched_score,
+                    "fit_level": fit_level,
+                    "overall_fit_percentage": round((matched_score / total_score) * 100, 2) if total_score else 0,
+                    "subject_fit_percentage": round((data['subject_matched_weight'] / data['subject_total_weight']) * 100, 2) if data['subject_total_weight'] else 0,
+                    "technical_skill_fit_percentage": round((data['tech_matched_weight'] / data['tech_total_weight']) * 100, 2) if data['tech_total_weight'] else 0,
+                    "non_technical_skill_fit_percentage": round((data['nontech_matched_weight'] / data['nontech_total_weight']) * 100, 2) if data['nontech_total_weight'] else 0
                 }
 
-                if data['subject_total_weight'] > 0:
-                    result['subject_fit_percentage'] = round((data['subject_matched_weight'] / data['subject_total_weight']) * 100, 2)
-
-                if data['tech_total_weight'] > 0:
-                    result['technical_skill_fit_percentage'] = round((data['tech_matched_weight'] / data['tech_total_weight']) * 100, 2)
-
-                if data['nontech_total_weight'] > 0:
-                    result['non_technical_skill_fit_percentage'] = round((data['nontech_matched_weight'] / data['nontech_total_weight']) * 100, 2)
-
                 final_output.append(result)
-            else:
-                unmatched_positions.append({
-                    'position_id': pos_id,
-                    'position_name': pos_name,
-                    'matched_score': matched_score,
-                    'total_weight': total_score
-                })
 
+        # ✅ Sort by match_score descending
         final_output.sort(key=lambda x: x['match_score'], reverse=True)
 
         fallback_triggered = len(final_output) == 0
@@ -165,7 +146,7 @@ def get_recommendations():
             return jsonify({
                 "success": True,
                 "fallback_triggered": True,
-                "message": "No positions matched, please add more skills.",
+                "message": "No positions matched, please add more skills."
             }), 200
 
         return jsonify({
