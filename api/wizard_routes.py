@@ -237,111 +237,27 @@ def get_advanced_preferences():
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # Query to fetch human-readable terms by joining the lookup tables
-        cursor.execute("""
-            SELECT tm.mode AS training_mode, cs.size AS company_size, c.culture_name AS culture, i.industry_name AS industry
-            FROM default_preferences dp
-            JOIN training_modes tm ON dp.training_mode_id = tm.id
-            JOIN company_sizes cs ON dp.company_size_id = cs.id
-            JOIN cultures c ON dp.culture_id = c.id
-            JOIN industries i ON dp.industry_id = i.id
-        """)
-        preferences = cursor.fetchone()
+        cursor.execute("SELECT mode FROM training_modes")
+        training_modes = [row['mode'] for row in cursor.fetchall()]
 
-        if not preferences:
-            return jsonify({"success": False, "message": "No preferences found."}), 204  # No content found
+        cursor.execute("SELECT size FROM company_sizes")
+        company_sizes = [row['size'] for row in cursor.fetchall()]
 
-        # Parse culture and industry if they exist (assuming comma-separated lists)
-        culture_list = preferences['culture'].split(',') if preferences.get('culture') else []
-        industry_list = preferences['industry'].split(',') if preferences.get('industry') else []
+        cursor.execute("SELECT culture_name FROM cultures")
+        cultures = [row['culture_name'] for row in cursor.fetchall()]
+
+        cursor.execute("SELECT industry_name FROM industries")
+        industries = [row['industry_name'] for row in cursor.fetchall()]
 
         return jsonify({
             "success": True,
             "data": {
-                "training_mode": preferences['training_mode'],
-                "company_size": preferences['company_size'],
-                "preferred_culture": culture_list,
-                "preferred_industry": industry_list
+                "training_mode": training_modes,
+                "company_size": company_sizes,
+                "preferred_culture": cultures,
+                "preferred_industry": industries
             }
         }), 200
-
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500  # Internal Server Error
-
-    finally:
-        if connection.is_connected():
-            cursor.close()
-            connection.close()
-            
-# ✅ Full Submit Wizard Endpoint
-@wizard_routes.route('/submit', methods=['POST'])
-def submit_wizard():
-    try:
-        # Step 1: Get all user data from the frontend
-        data = request.get_json()
-
-        full_name = data.get('full_name')
-        gender = data.get('gender')
-        major_id = data.get('major_id')
-        selected_subject_ids = data.get('selected_subject_ids', [])
-        selected_technical_skill_ids = data.get('selected_technical_skill_ids', [])
-        selected_non_technical_skill_ids = data.get('selected_non_technical_skill_ids', [])
-        advanced_preferences = data.get('advanced_preferences')  # object or null
-
-        # Step 2: Basic Validation
-        if not (full_name and gender and major_id):
-            return jsonify({"success": False, "message": "Missing basic user information."}), 400
-
-        # Step 3: Save to database
-        connection = get_db_connection()
-        cursor = connection.cursor()
-
-        # 3.1 Insert basic user info into wizard_submissions
-        cursor.execute("""
-            INSERT INTO wizard_submissions (full_name, gender, major_id)
-            VALUES (%s, %s, %s)
-        """, (full_name, gender, major_id))
-
-        # Get the new submission ID
-        submission_id = cursor.lastrowid
-
-        # 3.2 Insert selected subject topics (not subject categories)
-        for subject_id in selected_subject_ids:
-            cursor.execute("""
-                INSERT INTO wizard_submission_subjects (submission_id, subject_id)
-                VALUES (%s, %s)
-            """, (submission_id, subject_id))
-
-        # 3.3 Insert selected technical skills
-        for tech_skill_id in selected_technical_skill_ids:
-            cursor.execute("""
-                INSERT INTO wizard_submission_technical_skills (submission_id, skill_id)
-                VALUES (%s, %s)
-            """, (submission_id, tech_skill_id))
-
-        # 3.4 Insert selected non-technical skills
-        for nontech_skill_id in selected_non_technical_skill_ids:
-            cursor.execute("""
-                INSERT INTO wizard_submission_nontechnical_skills (submission_id, nontech_skill_id)
-                VALUES (%s, %s)
-            """, (submission_id, nontech_skill_id))
-
-        # 3.5 Insert advanced preferences only if they exist
-        if advanced_preferences:
-            training_mode = advanced_preferences.get('training_mode')
-            company_size = advanced_preferences.get('company_size')
-            company_culture = ','.join(advanced_preferences.get('company_culture', [])) if advanced_preferences.get('company_culture') else None
-            preferred_industry = ','.join(advanced_preferences.get('preferred_industry', [])) if advanced_preferences.get('preferred_industry') else None
-
-            cursor.execute("""
-                INSERT INTO wizard_submission_advanced_preferences (submission_id, training_mode, company_size, company_culture, preferred_industry)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (submission_id, training_mode, company_size, company_culture, preferred_industry))
-
-        # Step 4: Finalize
-        connection.commit()
-
-        return jsonify({"success": True, "message": "Wizard data submitted successfully!"}), 201
 
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
