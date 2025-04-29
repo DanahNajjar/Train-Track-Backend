@@ -2,21 +2,31 @@ from flask import Blueprint, request, jsonify
 import mysql.connector
 import base64
 import os
+import logging
 from collections import OrderedDict
 
+# Setup Logging
+logging.basicConfig(level=logging.INFO)
 
 wizard_routes = Blueprint('wizard_routes', __name__)
 
 # ✅ DB connection for all use cases
 def get_db_connection():
-    return mysql.connector.connect(
-        host=os.environ.get("DB_HOST"),
-        user=os.environ.get("DB_USER"),
-        password=os.environ.get("DB_PASSWORD"),
-        database=os.environ.get("DB_NAME"),
-        port=int(os.environ.get("DB_PORT", 3306))
-    )
+    try:
+        return mysql.connector.connect(
+            host=os.environ.get("DB_HOST"),
+            user=os.environ.get("DB_USER"),
+            password=os.environ.get("DB_PASSWORD"),
+            database=os.environ.get("DB_NAME"),
+            port=int(os.environ.get("DB_PORT", 3306))
+        )
+    except mysql.connector.Error as err:
+        log_error(f"Database connection failed: {err}")
+        raise
 
+# Log error messages
+def log_error(error_message):
+    logging.error(f"Error occurred: {error_message}")
 
 # ✅ Upload category images once
 def upload_category_images_once():
@@ -26,19 +36,31 @@ def upload_category_images_once():
 # ✅ Call once when app starts
 upload_category_images_once()
 
+# ✅ Helper function to build 'IN' clause dynamically
+def build_in_clause(ids):
+    return ','.join(['%s'] * len(ids)), tuple(ids)
+
+# ✅ Generalized response function
+def create_response(success, data=None, message=None, status_code=200):
+    return jsonify({
+        "success": success,
+        "data": data,
+        "message": message
+    }), status_code
+
 # ✅ Step 1: Get Majors
 @wizard_routes.route('/majors', methods=['GET'])
 def get_majors():
     majors = [
-        { "id": 1, "name": "Computer Science Apprenticeship Program" },
-        { "id": 2, "name": "Management Information Systems" },
-        { "id": 163, "name": "Computer Science" },
-        { "id": 164, "name": "Cyber Security" },
-        { "id": 165, "name": "Computer Engineering" }
+        {"id": 1, "name": "Computer Science Apprenticeship Program"},
+        {"id": 2, "name": "Management Information Systems"},
+        {"id": 163, "name": "Computer Science"},
+        {"id": 164, "name": "Cyber Security"},
+        {"id": 165, "name": "Computer Engineering"}
     ]
-    return jsonify({ "success": True, "data": majors }), 200
+    return create_response(True, majors)
 
-
+# ✅ Step 2: Get Subject Categories
 @wizard_routes.route('/subject-categories', methods=['GET'])
 def get_subject_categories():
     try:
@@ -51,9 +73,7 @@ def get_subject_categories():
         """)
         rows = cursor.fetchall()
 
-        # ✅ Detect your live backend base URL
         base_url = request.host_url.rstrip('/')
-
         categories = []
         for row in rows:
             static_path = f"/static/categories/{row['id']}.png"
@@ -65,31 +85,30 @@ def get_subject_categories():
                 "image_url": full_url
             })
 
-        return jsonify({ "success": True, "data": categories }), 200
-
+        return create_response(True, categories)
     except Exception as e:
-        return jsonify({ "success": False, "error": str(e) }), 500
-
+        log_error(f"Error fetching subject categories: {e}")
+        return create_response(False, message=str(e), status_code=500)
     finally:
         if connection.is_connected():
             cursor.close()
             connection.close()
 
-# ✅ Step 2.1: Get Subjects by Category IDs (With Category Name)
+# ✅ Step 3: Get Subjects by Category IDs (With Category Name)
 @wizard_routes.route('/subjects', methods=['GET'])
 def get_subjects_by_categories():
     ids_param = request.args.get('ids')
     if not ids_param:
-        return jsonify({ "success": False, "message": "Missing category ids." }), 400
+        return create_response(False, message="Missing category ids.", status_code=400)
 
     try:
         category_ids = [int(x) for x in ids_param.split(',')]
     except ValueError:
-        return jsonify({ "success": False, "message": "Invalid category id format." }), 400
+        return create_response(False, message="Invalid category id format.", status_code=400)
 
     connection = get_db_connection()
     cursor = connection.cursor(dictionary=True)
-    format_strings = ','.join(['%s'] * len(category_ids))
+    format_strings, category_ids = build_in_clause(category_ids)
     query = f"""
         SELECT p.id, p.name, p.category_id, c.name AS category_name
         FROM prerequisites p
@@ -111,27 +130,23 @@ def get_subjects_by_categories():
             }
         grouped[cid]["subjects"].append({"id": row['id'], "name": row['name']})
 
-    return jsonify({
-        "success": True,
-        "data": list(grouped.values())
-    }), 200
+    return create_response(True, list(grouped.values()))
 
-
-# ✅ Step 3: Technical Skills by Subject Category IDs (Grouped, using category_id)
+# ✅ Step 4: Get Technical Skills by Category IDs
 @wizard_routes.route('/technical-skills', methods=['GET'])
 def get_technical_skills_grouped():
     ids_param = request.args.get('category_ids')
     if not ids_param:
-        return jsonify({ "success": False, "message": "Missing category ids." }), 400
+        return create_response(False, message="Missing category ids.", status_code=400)
 
     try:
         category_ids = [int(x) for x in ids_param.split(',')]
     except ValueError:
-        return jsonify({ "success": False, "message": "Invalid category id format." }), 400
+        return create_response(False, message="Invalid category id format.", status_code=400)
 
     connection = get_db_connection()
     cursor = connection.cursor(dictionary=True)
-    format_strings = ','.join(['%s'] * len(category_ids))
+    format_strings, category_ids = build_in_clause(category_ids)
 
     query = f"""
         SELECT 
@@ -151,7 +166,6 @@ def get_technical_skills_grouped():
     rows = cursor.fetchall()
     connection.close()
 
-    # ✅ Grouping by subject category → tech category → skills
     subject_grouped = {}
     for row in rows:
         sub_id = row['subject_category_id']
@@ -174,7 +188,6 @@ def get_technical_skills_grouped():
             "name": row["name"]
         })
 
-    # ✅ Convert to required JSON format
     final_output = []
     for subject_data in subject_grouped.values():
         tech_cats_list = []
@@ -190,51 +203,33 @@ def get_technical_skills_grouped():
             "tech_categories": tech_cats_list
         })
 
-    return jsonify({ "success": True, "data": final_output }), 200
+    return create_response(True, final_output)
 
-    
-# ✅ Step 4: Get Non-Technical Skills
-@wizard_routes.route('/non-technical-skills', methods=['GET'])
-def get_non_technical_skills():
-    try:
-        connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
-        cursor.execute("""
-            SELECT id, name
-            FROM prerequisites
-            WHERE type = 'Non-Technical Skill'
-        """)
-        skills = cursor.fetchall()
-        return jsonify({"success": True, "data": skills}), 200
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-    finally:
-        if connection.is_connected():
-            connection.close()
-
-# ✅ Step 5: Save Advanced Preferences
+# ✅ Step 5: Save Advanced Preferences 
 @wizard_routes.route('/preferences', methods=['GET'])
 def get_advanced_preferences():
     try:
-        # Fetch the preferences from the database
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # Query for available training modes, company sizes, cultures, and industries
+        # Query to fetch human-readable terms by joining the lookup tables
         cursor.execute("""
-            SELECT training_mode, company_size, culture, industry
-            FROM default_preferences  -- Assuming you have a table or default settings for these preferences
+            SELECT tm.mode AS training_mode, cs.size AS company_size, c.culture_name AS culture, i.industry_name AS industry
+            FROM default_preferences dp
+            JOIN training_modes tm ON dp.training_mode_id = tm.id
+            JOIN company_sizes cs ON dp.company_size_id = cs.id
+            JOIN cultures c ON dp.culture_id = c.id
+            JOIN industries i ON dp.industry_id = i.id
         """)
         preferences = cursor.fetchone()
 
         if not preferences:
-            return jsonify({"success": False, "message": "No preferences found."}), 204  # Changed to 204 No Content
+            return jsonify({"success": False, "message": "No preferences found."}), 204  # No content found
 
         # Parse culture and industry if they exist (assuming comma-separated lists)
         culture_list = preferences['culture'].split(',') if preferences.get('culture') else []
         industry_list = preferences['industry'].split(',') if preferences.get('industry') else []
 
-        # Return the preferences as JSON
         return jsonify({
             "success": True,
             "data": {
@@ -246,17 +241,92 @@ def get_advanced_preferences():
         }), 200
 
     except Exception as e:
-        # Return error response if something goes wrong
+        return jsonify({"success": False, "message": str(e)}), 500  # Internal Server Error
+
+    finally:
+        if connection.is_connected():
+            cursor.close()
+            connection.close()
+            
+# ✅ Full Submit Wizard Endpoint
+@wizard_routes.route('/submit', methods=['POST'])
+def submit_wizard():
+    try:
+        # Step 1: Get all user data from the frontend
+        data = request.get_json()
+
+        full_name = data.get('full_name')
+        gender = data.get('gender')
+        major_id = data.get('major_id')
+        selected_subject_ids = data.get('selected_subject_ids', [])
+        selected_technical_skill_ids = data.get('selected_technical_skill_ids', [])
+        selected_non_technical_skill_ids = data.get('selected_non_technical_skill_ids', [])
+        advanced_preferences = data.get('advanced_preferences')  # object or null
+
+        # Step 2: Basic Validation
+        if not (full_name and gender and major_id):
+            return jsonify({"success": False, "message": "Missing basic user information."}), 400
+
+        # Step 3: Save to database
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # 3.1 Insert basic user info into wizard_submissions
+        cursor.execute("""
+            INSERT INTO wizard_submissions (full_name, gender, major_id)
+            VALUES (%s, %s, %s)
+        """, (full_name, gender, major_id))
+
+        # Get the new submission ID
+        submission_id = cursor.lastrowid
+
+        # 3.2 Insert selected subject topics (not subject categories)
+        for subject_id in selected_subject_ids:
+            cursor.execute("""
+                INSERT INTO wizard_submission_subjects (submission_id, subject_id)
+                VALUES (%s, %s)
+            """, (submission_id, subject_id))
+
+        # 3.3 Insert selected technical skills
+        for tech_skill_id in selected_technical_skill_ids:
+            cursor.execute("""
+                INSERT INTO wizard_submission_technical_skills (submission_id, skill_id)
+                VALUES (%s, %s)
+            """, (submission_id, tech_skill_id))
+
+        # 3.4 Insert selected non-technical skills
+        for nontech_skill_id in selected_non_technical_skill_ids:
+            cursor.execute("""
+                INSERT INTO wizard_submission_nontechnical_skills (submission_id, nontech_skill_id)
+                VALUES (%s, %s)
+            """, (submission_id, nontech_skill_id))
+
+        # 3.5 Insert advanced preferences only if they exist
+        if advanced_preferences:
+            training_mode = advanced_preferences.get('training_mode')
+            company_size = advanced_preferences.get('company_size')
+            company_culture = ','.join(advanced_preferences.get('company_culture', [])) if advanced_preferences.get('company_culture') else None
+            preferred_industry = ','.join(advanced_preferences.get('preferred_industry', [])) if advanced_preferences.get('preferred_industry') else None
+
+            cursor.execute("""
+                INSERT INTO wizard_submission_advanced_preferences (submission_id, training_mode, company_size, company_culture, preferred_industry)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (submission_id, training_mode, company_size, company_culture, preferred_industry))
+
+        # Step 4: Finalize
+        connection.commit()
+
+        return jsonify({"success": True, "message": "Wizard data submitted successfully!"}), 201
+
+    except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
     finally:
-        # Ensure the connection is closed
         if connection.is_connected():
             cursor.close()
             connection.close()
 
-
-# ✅ Step 6: Return Wizard Summary (Organized by Wizard Flow)
+# ✅ Step 6: Return Wizard Summary
 @wizard_routes.route('/user-input-summary', methods=['POST'])
 def user_input_summary():
     try:
@@ -277,10 +347,10 @@ def user_input_summary():
         major_row = cursor.fetchone()
         major_name = major_row['name'] if major_row else None
 
-        # ✅ Step 2: Get Selected Subjects (Grouped by Category)
+        # ✅ Get Selected Subjects
         subject_names_by_cat = []
         if subject_ids:
-            format_strings = ','.join(['%s'] * len(subject_ids))
+            format_strings, category_ids = build_in_clause(subject_ids)
             query = f"""
                 SELECT p.id, p.name, c.id AS category_id, c.name AS category_name
                 FROM prerequisites p
@@ -301,10 +371,10 @@ def user_input_summary():
                 grouped_subjects[cat_id]["subjects"].append({"id": row["id"], "name": row["name"]})
             subject_names_by_cat = list(grouped_subjects.values())
 
-        # ✅ Step 3: Get Technical Skills (Grouped by their actual technical skill categories 1–10)
+        # ✅ Get Technical Skills
         tech_skills_by_cat = []
         if technical_skill_ids:
-            format_strings = ','.join(['%s'] * len(technical_skill_ids))
+            format_strings, category_ids = build_in_clause(technical_skill_ids)
             query = f"""
                 SELECT p.id, p.name, c.id AS category_id, c.name AS category_name
                 FROM prerequisites p
@@ -322,23 +392,19 @@ def user_input_summary():
                         "category_name": row["category_name"],
                         "skills": []
                     }
-                if not any(s["id"] == row["id"] for s in grouped_skills[cat_id]["skills"]):
-                    grouped_skills[cat_id]["skills"].append({"id": row["id"], "name": row["name"]})
+                grouped_skills[cat_id]["skills"].append({"id": row["id"], "name": row["name"]})
             tech_skills_by_cat = list(grouped_skills.values())
 
-        # ✅ Step 4: Get Non-Technical Skills
+        # ✅ Get Non-Technical Skills
         non_tech_names = []
         if non_technical_skill_ids:
-            format_strings = ','.join(['%s'] * len(non_technical_skill_ids))
+            format_strings, category_ids = build_in_clause(non_technical_skill_ids)
             query = f"""
                 SELECT name FROM prerequisites
                 WHERE id IN ({format_strings}) AND type = 'Non-Technical Skill'
             """
             cursor.execute(query, tuple(non_technical_skill_ids))
             non_tech_names = [row['name'] for row in cursor.fetchall()]
-
-        # ✅ Step 5: Preferences (Advanced, if provided)
-        final_preferences = preferences if preferences else {}
 
         # ✅ Final Output: Ordered by Wizard Steps
         user_info = OrderedDict()
@@ -348,16 +414,13 @@ def user_input_summary():
         user_info["subjects"] = subject_names_by_cat
         user_info["technical_skills"] = tech_skills_by_cat
         user_info["non_technical_skills"] = non_tech_names
-        user_info["preferences"] = final_preferences
+        user_info["preferences"] = preferences
 
-        return jsonify({
-            "success": True,
-            "user_info": user_info
-        }), 200
+        return create_response(True, user_info)
 
     except Exception as e:
-        return jsonify({ "success": False, "message": str(e) }), 500
-
+        log_error(f"Error in user input summary: {e}")
+        return create_response(False, message=str(e), status_code=500)
     finally:
         if connection.is_connected():
             connection.close()
