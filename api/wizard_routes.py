@@ -232,26 +232,26 @@ def get_non_technical_skills():
 
 # ✅ Step 5: Save Advanced Preferences 
 @wizard_routes.route('/preferences', methods=['GET'])
-def get_available_preferences():
+def get_advanced_preferences():
     try:
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # ✅ Get training modes
-        cursor.execute("SELECT description FROM training_modes")
-        training_modes = [row["description"] for row in cursor.fetchall()]
+        # Get training modes
+        cursor.execute("SELECT id, description FROM training_modes")
+        training_modes = cursor.fetchall()
 
-        # ✅ Get company sizes
-        cursor.execute("SELECT description FROM company_sizes")
-        company_sizes = [row["description"] for row in cursor.fetchall()]
+        # Get company sizes
+        cursor.execute("SELECT id, description FROM company_sizes")
+        company_sizes = cursor.fetchall()
 
-        # ✅ Get company culture keywords
-        cursor.execute("SELECT culture_name FROM cultures")
-        cultures = [row["culture_name"] for row in cursor.fetchall()]
+        # Get company culture keywords (names only)
+        cursor.execute("SELECT id, name FROM company_culture_keywords")
+        cultures = cursor.fetchall()
 
-        # ✅ Get industry types
-        cursor.execute("SELECT industry_name FROM industries")
-        industries = [row["industry_name"] for row in cursor.fetchall()]
+        # Get industries
+        cursor.execute("SELECT id, name FROM industries")
+        industries = cursor.fetchall()
 
         return jsonify({
             "success": True,
@@ -264,13 +264,13 @@ def get_available_preferences():
         }), 200
 
     except Exception as e:
+        log_error(f"Error in /preferences route: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
     finally:
         if connection.is_connected():
             cursor.close()
             connection.close()
-
 
 # ✅ Step 6: Return Wizard Summary
 @wizard_routes.route('/user-input-summary', methods=['POST'])
