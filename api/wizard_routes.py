@@ -237,25 +237,34 @@ def get_advanced_preferences():
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        cursor.execute("SELECT mode FROM training_modes")
-        training_modes = [row['mode'] for row in cursor.fetchall()]
+        # ✅ Corrected column name: use 'description' instead of 'mode'
+        cursor.execute("""
+            SELECT 
+                tm.description AS training_mode, 
+                cs.size AS company_size, 
+                c.culture_name AS culture, 
+                i.industry_name AS industry
+            FROM default_preferences dp
+            JOIN training_modes tm ON dp.training_mode_id = tm.id
+            JOIN company_sizes cs ON dp.company_size_id = cs.id
+            JOIN cultures c ON dp.culture_id = c.id
+            JOIN industries i ON dp.industry_id = i.id
+        """)
+        preferences = cursor.fetchone()
 
-        cursor.execute("SELECT size FROM company_sizes")
-        company_sizes = [row['size'] for row in cursor.fetchall()]
+        if not preferences:
+            return jsonify({"success": False, "message": "No preferences found."}), 204
 
-        cursor.execute("SELECT culture_name FROM cultures")
-        cultures = [row['culture_name'] for row in cursor.fetchall()]
-
-        cursor.execute("SELECT industry_name FROM industries")
-        industries = [row['industry_name'] for row in cursor.fetchall()]
+        culture_list = preferences['culture'].split(',') if preferences.get('culture') else []
+        industry_list = preferences['industry'].split(',') if preferences.get('industry') else []
 
         return jsonify({
             "success": True,
             "data": {
-                "training_mode": training_modes,
-                "company_size": company_sizes,
-                "preferred_culture": cultures,
-                "preferred_industry": industries
+                "training_mode": preferences['training_mode'],
+                "company_size": preferences['company_size'],
+                "preferred_culture": culture_list,
+                "preferred_industry": industry_list
             }
         }), 200
 
@@ -266,6 +275,7 @@ def get_advanced_preferences():
         if connection.is_connected():
             cursor.close()
             connection.close()
+
 
 # ✅ Step 6: Return Wizard Summary
 @wizard_routes.route('/user-input-summary', methods=['POST'])
