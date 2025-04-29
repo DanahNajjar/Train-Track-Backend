@@ -232,40 +232,44 @@ def get_non_technical_skills():
 
 # ✅ Step 5: Save Advanced Preferences 
 @wizard_routes.route('/preferences', methods=['GET'])
-def get_available_preferences():
+def get_advanced_preferences():
     try:
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # Fetch training modes (e.g., onsite, remotely, hybrid)
-        cursor.execute("SELECT description FROM training_modes")
-        training_modes = [row['description'] for row in cursor.fetchall()]
+        # ✅ Corrected column names
+        cursor.execute("""
+            SELECT 
+                tm.description AS training_mode, 
+                cs.description AS company_size, 
+                c.culture_name AS culture, 
+                i.industry_name AS industry
+            FROM default_preferences dp
+            JOIN training_modes tm ON dp.training_mode_id = tm.id
+            JOIN company_sizes cs ON dp.company_size_id = cs.id
+            JOIN cultures c ON dp.culture_id = c.id
+            JOIN industries i ON dp.industry_id = i.id
+        """)
 
-        # Fetch company sizes (e.g., small, medium, large)
-        cursor.execute("SELECT size FROM company_sizes")
-        company_sizes = [row['size'] for row in cursor.fetchall()]
+        preferences = cursor.fetchone()
 
-        # Fetch company culture keywords
-        cursor.execute("SELECT culture_name FROM company_culture_keywords")
-        culture_keywords = [row['culture_name'] for row in cursor.fetchall()]
+        if not preferences:
+            return jsonify({"success": False, "message": "No preferences found."}), 204
 
-        # Fetch industries (e.g., software development, telecom, insurance)
-        cursor.execute("SELECT industry_name FROM industries")
-        industries = [row['industry_name'] for row in cursor.fetchall()]
+        culture_list = preferences['culture'].split(',') if preferences.get('culture') else []
+        industry_list = preferences['industry'].split(',') if preferences.get('industry') else []
 
-        # ✅ Build response
         return jsonify({
             "success": True,
             "data": {
-                "training_modes": training_modes,
-                "company_sizes": company_sizes,
-                "company_culture_keywords": culture_keywords,
-                "industries": industries
+                "training_mode": preferences['training_mode'],
+                "company_size": preferences['company_size'],
+                "preferred_culture": culture_list,
+                "preferred_industry": industry_list
             }
         }), 200
 
     except Exception as e:
-        log_error(f"Error fetching preferences: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
     finally:
