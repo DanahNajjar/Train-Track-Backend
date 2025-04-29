@@ -237,40 +237,42 @@ def get_advanced_preferences():
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # Get training modes
+        # ✅ Fetch training modes first
         cursor.execute("SELECT id, description FROM training_modes")
         training_modes = cursor.fetchall()
 
-        # Get company sizes
+        # ✅ Fetch company sizes second
         cursor.execute("SELECT id, description FROM company_sizes")
         company_sizes = cursor.fetchall()
 
-        # Get company culture keywords (names only)
+        # ✅ Fetch company cultures third
         cursor.execute("SELECT id, name FROM company_culture_keywords")
-        cultures = cursor.fetchall()
+        company_cultures = cursor.fetchall()
 
-        # Get industries
+        # ✅ Fetch industries fourth
         cursor.execute("SELECT id, name FROM industries")
         industries = cursor.fetchall()
 
+        # ✅ Organize the JSON exactly in your requested order
         return jsonify({
             "success": True,
             "data": {
-                "training_modes": training_modes,
-                "company_sizes": company_sizes,
-                "company_cultures": cultures,
-                "industries": industries
+                "training_modes": training_modes,       # First
+                "company_sizes": company_sizes,         # Second
+                "company_cultures": company_cultures,   # Third
+                "industries": industries                # Fourth
             }
         }), 200
 
     except Exception as e:
-        log_error(f"Error in /preferences route: {e}")
+        log_error(f"Error fetching preferences: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
     finally:
         if connection.is_connected():
             cursor.close()
             connection.close()
+
 
 # ✅ Step 6: Return Wizard Summary
 @wizard_routes.route('/user-input-summary', methods=['POST'])
