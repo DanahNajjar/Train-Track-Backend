@@ -204,6 +204,31 @@ def get_technical_skills_grouped():
         })
 
     return create_response(True, final_output)
+    # ✅ Step 4: Get Non-Technical Skills
+@wizard_routes.route('/non-technical-skills', methods=['GET'])
+def get_non_technical_skills():
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT id, name
+            FROM prerequisites
+            WHERE type = 'Non-Technical Skill'
+            ORDER BY name
+        """)
+        skills = cursor.fetchall()
+
+        return create_response(True, skills)
+
+    except Exception as e:
+        log_error(f"Error fetching non-technical skills: {e}")
+        return create_response(False, message=str(e), status_code=500)
+    finally:
+        if connection.is_connected():
+            cursor.close()
+            connection.close()
+
 
 # ✅ Step 5: Save Advanced Preferences 
 @wizard_routes.route('/preferences', methods=['GET'])
