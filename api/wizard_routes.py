@@ -372,3 +372,75 @@ def user_input_summary():
     finally:
         if connection.is_connected():
             connection.close()
+
+@wizard_routes.route('/submit', methods=['POST'])
+def submit_wizard():
+    try:
+        data = request.get_json()
+
+        # Required fields
+        full_name = data.get('full_name')
+        gender = data.get('gender')
+        major_id = data.get('major_id')
+        selected_subject_ids = data.get('selected_subject_ids', [])
+        selected_technical_skill_ids = data.get('selected_technical_skill_ids', [])
+        selected_non_technical_skill_ids = data.get('selected_non_technical_skill_ids', [])
+        advanced_preferences = data.get('advanced_preferences')  # can be None or {}
+
+        if not all([full_name, gender, major_id]):
+            return jsonify({"success": False, "message": "Missing basic user info."}), 400
+
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # Save basic info
+        cursor.execute("""
+            INSERT INTO wizard_submissions (full_name, gender, major_id)
+            VALUES (%s, %s, %s)
+        """, (full_name, gender, major_id))
+        submission_id = cursor.lastrowid
+
+        # Save subjects
+        for subject_id in selected_subject_ids:
+            cursor.execute("""
+                INSERT INTO wizard_submission_subjects (submission_id, subject_id)
+                VALUES (%s, %s)
+            """, (submission_id, subject_id))
+
+        # Save technical skills
+        for skill_id in selected_technical_skill_ids:
+            cursor.execute("""
+                INSERT INTO wizard_submission_technical_skills (submission_id, skill_id)
+                VALUES (%s, %s)
+            """, (submission_id, skill_id))
+
+        # Save non-technical skills
+        for nontech_id in selected_non_technical_skill_ids:
+            cursor.execute("""
+                INSERT INTO wizard_submission_nontechnical_skills (submission_id, nontech_skill_id)
+                VALUES (%s, %s)
+            """, (submission_id, nontech_id))
+
+        # ✅ Save preferences ONLY if filled
+        if advanced_preferences:
+            training_mode = advanced_preferences.get('training_mode')
+            company_size = advanced_preferences.get('company_size')
+            company_culture = ','.join(advanced_preferences.get('company_culture', [])) if advanced_preferences.get('company_culture') else None
+            preferred_industry = ','.join(advanced_preferences.get('preferred_industry', [])) if advanced_preferences.get('preferred_industry') else None
+
+            cursor.execute("""
+                INSERT INTO wizard_submission_advanced_preferences (submission_id, training_mode, company_size, company_culture, preferred_industry)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (submission_id, training_mode, company_size, company_culture, preferred_industry))
+
+        connection.commit()
+        return jsonify({"success": True, "message": "Wizard data submitted!"}), 201
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+    finally:
+        if connection.is_connected():
+            cursor.close()
+            connection.close()
+
