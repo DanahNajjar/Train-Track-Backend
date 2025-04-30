@@ -47,6 +47,13 @@ def create_response(success, data=None, message=None, status_code=200):
         "data": data,
         "message": message
     }), status_code
+@wizard_routes.route('/debug-db')
+def debug_db():
+    return jsonify({
+        "environment": os.getenv("FLASK_ENV"),
+        "db_host": os.getenv("DB_HOST"),
+        "db_name": os.getenv("DB_NAME")
+    })
 
 # ✅ Step 1: Get Majors
 @wizard_routes.route('/majors', methods=['GET'])
