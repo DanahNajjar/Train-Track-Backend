@@ -2,14 +2,17 @@ from flask import Flask, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
-
 import logging
+
+# ✅ Setup Logging
 logging.basicConfig(level=logging.INFO)
 
-# ✅ Load local environment
-load_dotenv(dotenv_path=".env.local")
+# ✅ Determine and load the correct environment file
+env_file = ".env.remote" if os.getenv("FLASK_ENV") == "production" else ".env.local"
+load_dotenv(dotenv_path=env_file)
+logging.info(f"🔧 Loaded environment from: {env_file}")
 
-# ✅ Import blueprints
+# ✅ Import routes
 from api.wizard_routes import wizard_routes
 from api.recommendation import recommendation_routes
 
