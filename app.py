@@ -9,6 +9,8 @@ logging.basicConfig(level=logging.INFO)
 
 # ✅ Determine and load the correct environment file
 env_file = ".env.remote" if os.getenv("FLASK_ENV") == "production" else ".env.local"
+# ✅ Automatically load correct environment file based on FLASK_ENV
+env_file = ".env.remote" if os.getenv("FLASK_ENV") == "production" else ".env.local"
 load_dotenv(dotenv_path=env_file)
 logging.info(f"🔧 Loaded environment from: {env_file}")
 
