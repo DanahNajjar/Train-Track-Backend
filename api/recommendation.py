@@ -13,15 +13,15 @@ def validate_user_input(subject_ids, tech_skills, non_tech_skills):
         return "Please select between 3 and 5 non-technical skills."
     return None
 
-# ✅ Fit level logic (based on percentage only)
+# ✅ Fit level logic (based on normalized percentage against min_fit_score)
 def get_fit_level(overall_percentage):
-    if overall_percentage >= 87.5:
+    if overall_percentage >= 125:
         return "Perfect Match"
-    elif overall_percentage >= 75:
+    elif overall_percentage >= 112.5:
         return "Very Strong Match"
-    elif overall_percentage >= 62.5:
+    elif overall_percentage >= 100:
         return "Strong Match"
-    elif overall_percentage >= 50:
+    elif overall_percentage >= 80:
         return "Partial Match"
     else:
         return "No Match"
@@ -72,19 +72,13 @@ def get_recommendations():
             if pos_id not in positions:
                 positions[pos_id] = {
                     "position_name": row["position_name"],
+                    "min_fit_score": row["min_fit_score"] or 0,
                     "subjects": [],
                     "technical_skills": [],
                     "non_technical_skills": []
                 }
 
-            # ✅ Use a safe map
-            key_map = {
-                "Subject": "subjects",
-                "Technical Skill": "technical_skills",
-                "Non-Technical Skill": "non_technical_skills"
-            }
-            if type_ in key_map:
-                positions[pos_id][key_map[type_]].append((preq_id, weight))
+            positions[pos_id][type_.lower().replace('-', '_') + 's'].append((preq_id, weight))
 
         # ✅ Compute match per position
         results = []
@@ -99,11 +93,12 @@ def get_recommendations():
 
             total_weight = total_subject_weight + total_tech_weight + total_nontech_weight
             matched_weight = matched_subject + matched_tech + matched_nontech
+            min_fit_score = pos["min_fit_score"]
 
-            if total_weight == 0:
+            if total_weight == 0 or min_fit_score == 0:
                 continue
 
-            overall_percentage = round((matched_weight / total_weight) * 100, 2)
+            overall_percentage = round((matched_weight / min_fit_score) * 100, 2)
             fit_level = get_fit_level(overall_percentage)
 
             if fit_level != "No Match":
@@ -133,7 +128,6 @@ def get_recommendations():
         import traceback
         traceback.print_exc()
         return jsonify({"success": False, "message": str(e)}), 500
-
     finally:
         if connection.is_connected():
             connection.close()
