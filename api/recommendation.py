@@ -13,22 +13,22 @@ def validate_user_input(subject_ids, tech_skills, non_tech_skills):
         return "Please select between 3 and 5 non-technical skills."
     return None
 
-# ✅ Fit level logic (based on percentage of min_fit_score)
+# ✅ Fit level logic (based on percentage only)
 def get_fit_level(overall_percentage):
-    if overall_percentage >= 125:
+    if overall_percentage >= 87.5:
         return "Perfect Match"
-    elif overall_percentage >= 100:
-        return "Very Strong Match"
-    elif overall_percentage >= 87.5:
-        return "Strong Match"
     elif overall_percentage >= 75:
+        return "Very Strong Match"
+    elif overall_percentage >= 62.5:
+        return "Strong Match"
+    elif overall_percentage >= 50:
         return "Partial Match"
     else:
         return "No Match"
 
 @recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
-    current_app.logger.info("\U0001F680 Starting recommendation analysis...")
+    current_app.logger.info("🚀 Starting recommendation analysis...")
     data = request.get_json()
 
     try:
@@ -72,14 +72,20 @@ def get_recommendations():
             if pos_id not in positions:
                 positions[pos_id] = {
                     "position_name": row["position_name"],
-                    "min_fit_score": row["min_fit_score"] or 1,
                     "subjects": [],
                     "technical_skills": [],
                     "non_technical_skills": []
                 }
 
-            key = type_.lower().replace('-', '_') + 's'
-            positions[pos_id][key].append((preq_id, weight))
+            # ✅ Proper mapping
+            key_map = {
+                "Subject": "subjects",
+                "Technical Skill": "technical_skills",
+                "Non-Technical Skill": "non_technical_skills"
+            }
+
+            if type_ in key_map:
+                positions[pos_id][key_map[type_]].append((preq_id, weight))
 
         # ✅ Compute match per position
         results = []
@@ -92,10 +98,13 @@ def get_recommendations():
             matched_tech = sum(w for pid, w in pos["technical_skills"] if pid in tech_skills)
             matched_nontech = sum(w for pid, w in pos["non_technical_skills"] if pid in non_tech_skills)
 
+            total_weight = total_subject_weight + total_tech_weight + total_nontech_weight
             matched_weight = matched_subject + matched_tech + matched_nontech
-            min_fit_score = pos["min_fit_score"]
 
-            overall_percentage = round((matched_weight / min_fit_score) * 100, 2)
+            if total_weight == 0:
+                continue
+
+            overall_percentage = round((matched_weight / total_weight) * 100, 2)
             fit_level = get_fit_level(overall_percentage)
 
             if fit_level != "No Match":
@@ -111,6 +120,7 @@ def get_recommendations():
                     "non_technical_skill_fit_percentage": round((matched_nontech / total_nontech_weight) * 100, 2) if total_nontech_weight else 0
                 })
 
+        # ✅ Sort by match score
         results.sort(key=lambda x: x["match_score"], reverse=True)
 
         return jsonify({
@@ -124,7 +134,6 @@ def get_recommendations():
         import traceback
         traceback.print_exc()
         return jsonify({"success": False, "message": str(e)}), 500
-
     finally:
         if connection.is_connected():
             connection.close()
