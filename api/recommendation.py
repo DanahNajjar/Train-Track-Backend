@@ -13,22 +13,22 @@ def validate_user_input(subject_ids, tech_skills, non_tech_skills):
         return "Please select between 3 and 5 non-technical skills."
     return None
 
-# ✅ New threshold mapping
+# ✅ Fit level logic (based on percentage only)
 def get_fit_level(overall_percentage):
-    if overall_percentage >= 80:
+    if overall_percentage >= 87.5:
         return "Perfect Match"
-    elif overall_percentage >= 65:
+    elif overall_percentage >= 75:
         return "Very Strong Match"
-    elif overall_percentage >= 50:
+    elif overall_percentage >= 62.5:
         return "Strong Match"
-    elif overall_percentage >= 35:
+    elif overall_percentage >= 50:
         return "Partial Match"
     else:
         return "No Match"
 
 @recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
-    current_app.logger.info("🚀 Starting recommendation analysis...")
+    current_app.logger.info("\U0001F680 Starting recommendation analysis...")
     data = request.get_json()
 
     try:
@@ -77,9 +77,14 @@ def get_recommendations():
                     "non_technical_skills": []
                 }
 
-            key = type_.lower().replace('-', '_') + 's'
-            if key in positions[pos_id]:
-                positions[pos_id][key].append((preq_id, weight))
+            # ✅ Use a safe map
+            key_map = {
+                "Subject": "subjects",
+                "Technical Skill": "technical_skills",
+                "Non-Technical Skill": "non_technical_skills"
+            }
+            if type_ in key_map:
+                positions[pos_id][key_map[type_]].append((preq_id, weight))
 
         # ✅ Compute match per position
         results = []
