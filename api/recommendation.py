@@ -73,7 +73,7 @@ def get_recommendations():
             type_ = prerequisite_info.get(preq_id)
 
             if not type_ or type_ == "Major":
-                continue  # ❌ Skip if Major or not found
+                continue
 
             if pos_id not in positions:
                 positions[pos_id] = {
@@ -100,7 +100,7 @@ def get_recommendations():
             current_app.logger.info(f"Technical Skills required: {pos_data['technical_skills']}")
             current_app.logger.info(f"Non-Technical Skills required: {pos_data['non_technical_skills']}")
 
-            # Calculating the weights for each category
+            # Total and matched weights
             total_subject_weight = sum(weight for _, weight in pos_data['subjects'])
             total_tech_weight = sum(weight for _, weight in pos_data['technical_skills'])
             total_nontech_weight = sum(weight for _, weight in pos_data['non_technical_skills'])
@@ -128,6 +128,7 @@ def get_recommendations():
                     "position_id": pos_id,
                     "position_name": pos_data['position_name'],
                     "match_score": matched_weight,
+                    "match_score_percentage": round((matched_weight / total_weight) * 100, 2) if total_weight else 0,  # ✅ NEW LINE
                     "fit_level": fit_level,
                     "overall_fit_percentage": round((matched_weight / total_weight) * 100, 2) if total_weight else 0,
                     "subject_fit_percentage": round((matched_subject_weight / total_subject_weight) * 100, 2) if total_subject_weight else 0,
@@ -138,12 +139,9 @@ def get_recommendations():
 
             current_app.logger.info(f"✅ Finished analyzing position {pos_data['position_name']}.\n")
 
-        # ✅ Sort results
+        # Sort results by highest score
         final_output.sort(key=lambda x: x['match_score'], reverse=True)
-
         fallback_triggered = len(final_output) == 0
-
-        current_app.logger.info("🏁 Processing ended.\n")
 
         if fallback_triggered:
             return jsonify({
