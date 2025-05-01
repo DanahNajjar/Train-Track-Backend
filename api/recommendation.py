@@ -13,27 +13,28 @@ def validate_user_input(subject_ids, tech_skills, non_tech_skills):
         return "Please select between 3 and 5 non-technical skills."
     return None
 
-# Fit Level helper
-def get_fit_level(matched_score, min_fit_score):
-    if matched_score >= min_fit_score * 1.25:
+# Updated fit level logic based on percentage
+def get_fit_level(overall_percentage):
+    if overall_percentage >= 87.5:
         return "Perfect Match"
-    elif matched_score >= min_fit_score:
+    elif overall_percentage >= 75:
+        return "Very Strong Match"
+    elif overall_percentage >= 62.5:
+        return "Strong Match"
+    elif overall_percentage >= 50:
         return "Partial Match"
     else:
         return "No Match"
 
-# Main Recommendation Endpoint
 @recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
-    current_app.logger.info("🚀 Processing started for recommendations...")
-
+    current_app.logger.info("\U0001F680 Processing started for recommendations...")
     data = request.get_json()
 
     try:
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # ✅ Extract Inputs
         subject_ids = set(data.get("subjects", []))
         tech_skills = set(data.get("technical_skills", []))
         non_tech_skills = set(data.get("non_technical_skills", []))
@@ -42,16 +43,13 @@ def get_recommendations():
         current_app.logger.info(f"Technical Skills selected: {tech_skills}")
         current_app.logger.info(f"Non-Technical Skills selected: {non_tech_skills}")
 
-        # ✅ Validate Inputs
         validation_error = validate_user_input(subject_ids, tech_skills, non_tech_skills)
         if validation_error:
             return jsonify({"success": False, "message": validation_error}), 400
 
-        # ✅ Fetch prerequisite info
         cursor.execute("SELECT id, type FROM prerequisites")
         prerequisite_info = {int(row['id']): row['type'] for row in cursor.fetchall()}
 
-        # ✅ Fetch position prerequisites
         cursor.execute("""
             SELECT 
                 pp.position_id,
@@ -64,7 +62,6 @@ def get_recommendations():
         """)
         all_prerequisites = cursor.fetchall()
 
-        # ✅ Group by position
         positions = {}
         for row in all_prerequisites:
             pos_id = row['position_id']
@@ -78,7 +75,6 @@ def get_recommendations():
             if pos_id not in positions:
                 positions[pos_id] = {
                     "position_name": row['position_name'],
-                    "min_fit_score": row['min_fit_score'] or 0,
                     "subjects": [],
                     "technical_skills": [],
                     "non_technical_skills": []
@@ -91,78 +87,51 @@ def get_recommendations():
             elif type_ == "Non-Technical Skill":
                 positions[pos_id]["non_technical_skills"].append((preq_id, weight))
 
-        # ✅ Analyze matches
         final_output = []
-
         for pos_id, pos_data in positions.items():
-            current_app.logger.info(f"=== Checking Position: {pos_data['position_name']} (ID: {pos_id}) ===")
-            current_app.logger.info(f"Subjects required: {pos_data['subjects']}")
-            current_app.logger.info(f"Technical Skills required: {pos_data['technical_skills']}")
-            current_app.logger.info(f"Non-Technical Skills required: {pos_data['non_technical_skills']}")
+            total_subject_weight = sum(w for _, w in pos_data['subjects'])
+            total_tech_weight = sum(w for _, w in pos_data['technical_skills'])
+            total_nontech_weight = sum(w for _, w in pos_data['non_technical_skills'])
 
-            # Total and matched weights
-            total_subject_weight = sum(weight for _, weight in pos_data['subjects'])
-            total_tech_weight = sum(weight for _, weight in pos_data['technical_skills'])
-            total_nontech_weight = sum(weight for _, weight in pos_data['non_technical_skills'])
-
-            matched_subject_weight = sum(weight for prereq_id, weight in pos_data['subjects'] if prereq_id in subject_ids)
-            matched_tech_weight = sum(weight for prereq_id, weight in pos_data['technical_skills'] if prereq_id in tech_skills)
-            matched_nontech_weight = sum(weight for prereq_id, weight in pos_data['non_technical_skills'] if prereq_id in non_tech_skills)
+            matched_subject_weight = sum(w for pid, w in pos_data['subjects'] if pid in subject_ids)
+            matched_tech_weight = sum(w for pid, w in pos_data['technical_skills'] if pid in tech_skills)
+            matched_nontech_weight = sum(w for pid, w in pos_data['non_technical_skills'] if pid in non_tech_skills)
 
             total_weight = total_subject_weight + total_tech_weight + total_nontech_weight
             matched_weight = matched_subject_weight + matched_tech_weight + matched_nontech_weight
 
-            current_app.logger.info(f"Matched subject weight: {matched_subject_weight}/{total_subject_weight}")
-            current_app.logger.info(f"Matched tech weight: {matched_tech_weight}/{total_tech_weight}")
-            current_app.logger.info(f"Matched nontech weight: {matched_nontech_weight}/{total_nontech_weight}")
-            current_app.logger.info(f"Total matched weight: {matched_weight}/{total_weight}")
-
-            if pos_data['min_fit_score'] <= 0:
+            if total_weight == 0:
                 continue
 
-            fit_level = get_fit_level(matched_weight, pos_data['min_fit_score'])
-            is_recommended = matched_weight >= pos_data['min_fit_score']
+            overall_percentage = round((matched_weight / total_weight) * 100, 2)
+            fit_level = get_fit_level(overall_percentage)
 
-            if is_recommended:
-                result = {
+            if overall_percentage >= 50:
+                final_output.append({
                     "position_id": pos_id,
                     "position_name": pos_data['position_name'],
                     "match_score": matched_weight,
-                    "match_score_percentage": round((matched_weight / total_weight) * 100, 2) if total_weight else 0,  # ✅ NEW LINE
+                    "match_score_percentage": overall_percentage,
                     "fit_level": fit_level,
-                    "overall_fit_percentage": round((matched_weight / total_weight) * 100, 2) if total_weight else 0,
+                    "overall_fit_percentage": overall_percentage,
                     "subject_fit_percentage": round((matched_subject_weight / total_subject_weight) * 100, 2) if total_subject_weight else 0,
                     "technical_skill_fit_percentage": round((matched_tech_weight / total_tech_weight) * 100, 2) if total_tech_weight else 0,
                     "non_technical_skill_fit_percentage": round((matched_nontech_weight / total_nontech_weight) * 100, 2) if total_nontech_weight else 0
-                }
-                final_output.append(result)
+                })
 
-            current_app.logger.info(f"✅ Finished analyzing position {pos_data['position_name']}.\n")
-
-        # Sort results by highest score
         final_output.sort(key=lambda x: x['match_score'], reverse=True)
-        fallback_triggered = len(final_output) == 0
-
-        if fallback_triggered:
-            return jsonify({
-                "success": True,
-                "fallback_triggered": True,
-                "message": "No positions matched, please add more skills."
-            }), 200
 
         return jsonify({
             "success": True,
             "fallback_possible": False,
-            "fallback_triggered": False,
+            "fallback_triggered": len(final_output) == 0,
             "recommended_positions": final_output
         }), 200
 
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({
-            "success": False,
-            "message": str(e)
-        }), 500
+        return jsonify({"success": False, "message": str(e)}), 500
+
     finally:
         connection.close()
