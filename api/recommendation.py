@@ -28,7 +28,7 @@ def get_fit_level(overall_percentage):
 
 @recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
-    current_app.logger.info("🚀 Starting recommendation analysis...")
+    current_app.logger.info("\U0001F680 Starting recommendation analysis...")
     data = request.get_json()
 
     try:
@@ -77,13 +77,12 @@ def get_recommendations():
                     "non_technical_skills": []
                 }
 
-            # ✅ Proper mapping
+            # ✅ Use a safe map
             key_map = {
                 "Subject": "subjects",
                 "Technical Skill": "technical_skills",
                 "Non-Technical Skill": "non_technical_skills"
             }
-
             if type_ in key_map:
                 positions[pos_id][key_map[type_]].append((preq_id, weight))
 
@@ -134,6 +133,7 @@ def get_recommendations():
         import traceback
         traceback.print_exc()
         return jsonify({"success": False, "message": str(e)}), 500
+
     finally:
         if connection.is_connected():
             connection.close()
