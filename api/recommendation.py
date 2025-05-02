@@ -173,6 +173,13 @@ def get_companies_for_positions():
         company_sizes_raw = request.args.get('company_sizes', '').strip()
         industries_raw = request.args.get('industries', '').strip()
 
+        # ✅ NEW: If all are empty → user skipped preferences
+        if not training_modes_raw and not company_sizes_raw and not industries_raw:
+            return jsonify({
+                "success": True,
+                "positions": []  # Return empty result if no preferences selected
+            }), 200
+
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
@@ -239,7 +246,7 @@ def get_companies_for_positions():
                 "company_name": row['company_name'],
                 "company_size": row['company_size'],
                 "industry": row['industry'],
-                "training_mode": row['training_mode'],
+                "training_mode": row['training_mode"],
                 "location": row['location'],
                 "address": row['address'],
                 "website_link": row['website_link']
