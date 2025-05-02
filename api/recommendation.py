@@ -114,13 +114,20 @@ def get_recommendations():
             if not base:
                 continue  # Skip positions without min_fit_score
 
+            # ✅ Determine fit level based on actual match score
             fit_level = get_fit_level(matched_weight, base)
+
             if fit_level in ["No Match", "Fallback Only"]:
                 continue
 
+            # ✅ Log internal scoring for debugging
+            current_app.logger.info(
+                f"[{pos['position_name']}] Match Score: {matched_weight} | "
+                f"Min Fit: {base} | Fit Level: {fit_level} | Total Weight: {total_weight}"
+            )
+
             overall_pct = round((matched_weight / total_weight) * 100, 2)
 
-            # ✅ Return only necessary fields, in the order you requested
             results.append({
                 "fit_level": fit_level,
                 "match_score_percentage": overall_pct,
