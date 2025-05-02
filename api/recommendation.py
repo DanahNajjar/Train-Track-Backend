@@ -156,3 +156,103 @@ def get_recommendations():
     finally:
         if connection.is_connected():
             connection.close()
+@recommendation_routes.route('/companies-for-positions', methods=['GET'])
+def get_companies_for_positions():
+    try:
+        position_ids_raw = request.args.get('ids')
+        if not position_ids_raw:
+            return jsonify({"success": False, "message": "Missing position IDs."}), 400
+
+        position_ids = [int(pid) for pid in position_ids_raw.split(',') if pid.strip().isdigit()]
+        if not position_ids:
+            return jsonify({"success": False, "message": "No valid position IDs provided."}), 400
+
+        # Optional filters
+        training_modes = request.args.get('training_modes')  # e.g., "1,2"
+        company_sizes = request.args.get('company_sizes')    # e.g., "2"
+        industries = request.args.get('industries')          # e.g., "3"
+
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        filters = ["cp.position_id IN ({})".format(','.join(['%s'] * len(position_ids)))]
+        params = list(position_ids)
+
+        if training_modes and training_modes.strip():
+            mode_ids = [int(x) for x in training_modes.split(',') if x.strip().isdigit()]
+            if mode_ids:
+                filters.append("c.training_mode_id IN ({})".format(','.join(['%s'] * len(mode_ids))))
+                params.extend(mode_ids)
+
+        if company_sizes and company_sizes.strip():
+            size_ids = [int(x) for x in company_sizes.split(',') if x.strip().isdigit()]
+            if size_ids:
+                filters.append("c.company_sizes_id IN ({})".format(','.join(['%s'] * len(size_ids))))
+                params.extend(size_ids)
+
+        if industries and industries.strip():
+            ind_ids = [int(x) for x in industries.split(',') if x.strip().isdigit()]
+            if ind_ids:
+                filters.append("c.industry_id IN ({})".format(','.join(['%s'] * len(ind_ids))))
+                params.extend(ind_ids)
+
+        query = f"""
+            SELECT 
+                c.id AS company_id,
+                c.company_name,
+                cs.description AS company_size,
+                i.name AS industry,
+                tm.description AS training_mode,
+                b.city AS location,
+                b.address,
+                b.website_link,
+                p.id AS position_id,
+                p.name AS position_name
+            FROM companies c
+            JOIN company_positions cp ON c.id = cp.company_id
+            JOIN positions p ON cp.position_id = p.id
+            JOIN company_sizes cs ON c.company_sizes_id = cs.id
+            JOIN industries i ON c.industry_id = i.id
+            JOIN training_modes tm ON c.training_mode_id = tm.id
+            JOIN branches b ON c.id = b.company_id AND b.is_main_branch = 1
+            WHERE {" AND ".join(filters)}
+        """
+
+        cursor.execute(query, tuple(params))
+        rows = cursor.fetchall()
+
+        grouped = {}
+        for row in rows:
+            pos_id = row['position_id']
+            if pos_id not in grouped:
+                grouped[pos_id] = {
+                    "position_id": pos_id,
+                    "position_name": row['position_name'],
+                    "companies": []
+                }
+
+            grouped[pos_id]['companies'].append({
+                "company_id": row['company_id'],
+                "company_name": row['company_name'],
+                "company_size": row['company_size'],
+                "industry": row['industry'],
+                "training_mode": row['training_mode'],
+                "location": row['location'],
+                "address": row['address'],
+                "website_link": row['website_link']
+            })
+
+        return jsonify({
+            "success": True,
+            "positions": list(grouped.values())
+        }), 200
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        current_app.logger.error(f"❌ Error fetching companies for positions: {str(e)}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+    finally:
+        if 'connection' in locals() and connection.is_connected():
+            connection.close()
