@@ -246,7 +246,7 @@ def get_companies_for_positions():
                 "company_name": row['company_name'],
                 "company_size": row['company_size'],
                 "industry": row['industry'],
-                "training_mode": row['training_mode"],
+                "training_mode": row["training_mode"],
                 "location": row['location'],
                 "address": row['address'],
                 "website_link": row['website_link']
