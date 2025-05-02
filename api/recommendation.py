@@ -163,14 +163,15 @@ def get_companies_for_positions():
         if not position_ids_raw:
             return jsonify({"success": False, "message": "Missing position IDs."}), 400
 
-        position_ids = [int(pid) for pid in position_ids_raw.split(',') if pid.strip().isdigit()]
+        # ✅ Parse position IDs safely
+        position_ids = [int(pid.strip()) for pid in position_ids_raw.split(',') if pid.strip().isdigit()]
         if not position_ids:
             return jsonify({"success": False, "message": "No valid position IDs provided."}), 400
 
-        # Optional filters
-        training_modes = request.args.get('training_modes')  # e.g., "1,2"
-        company_sizes = request.args.get('company_sizes')    # e.g., "2"
-        industries = request.args.get('industries')          # e.g., "3"
+        # ✅ Optional filters
+        training_modes_raw = request.args.get('training_modes', '').strip()
+        company_sizes_raw = request.args.get('company_sizes', '').strip()
+        industries_raw = request.args.get('industries', '').strip()
 
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
@@ -178,24 +179,25 @@ def get_companies_for_positions():
         filters = ["cp.position_id IN ({})".format(','.join(['%s'] * len(position_ids)))]
         params = list(position_ids)
 
-        if training_modes and training_modes.strip():
-            mode_ids = [int(x) for x in training_modes.split(',') if x.strip().isdigit()]
+        if training_modes_raw:
+            mode_ids = [int(x.strip()) for x in training_modes_raw.split(',') if x.strip().isdigit()]
             if mode_ids:
                 filters.append("c.training_mode_id IN ({})".format(','.join(['%s'] * len(mode_ids))))
                 params.extend(mode_ids)
 
-        if company_sizes and company_sizes.strip():
-            size_ids = [int(x) for x in company_sizes.split(',') if x.strip().isdigit()]
+        if company_sizes_raw:
+            size_ids = [int(x.strip()) for x in company_sizes_raw.split(',') if x.strip().isdigit()]
             if size_ids:
                 filters.append("c.company_sizes_id IN ({})".format(','.join(['%s'] * len(size_ids))))
                 params.extend(size_ids)
 
-        if industries and industries.strip():
-            ind_ids = [int(x) for x in industries.split(',') if x.strip().isdigit()]
+        if industries_raw:
+            ind_ids = [int(x.strip()) for x in industries_raw.split(',') if x.strip().isdigit()]
             if ind_ids:
                 filters.append("c.industry_id IN ({})".format(','.join(['%s'] * len(ind_ids))))
                 params.extend(ind_ids)
 
+        # ✅ Build and execute query
         query = f"""
             SELECT 
                 c.id AS company_id,
@@ -221,6 +223,7 @@ def get_companies_for_positions():
         cursor.execute(query, tuple(params))
         rows = cursor.fetchall()
 
+        # ✅ Group companies by position
         grouped = {}
         for row in rows:
             pos_id = row['position_id']
