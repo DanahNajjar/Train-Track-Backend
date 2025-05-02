@@ -120,19 +120,18 @@ def get_recommendations():
 
             overall_pct = round((matched_weight / total_weight) * 100, 2)
 
+            # ✅ Return only necessary fields, in the order you requested
             results.append({
+                "fit_level": fit_level,
+                "match_score_percentage": overall_pct,
                 "position_id": pid,
                 "position_name": pos["position_name"],
-                "match_score": matched_weight,
-                "match_score_percentage": overall_pct,
-                "fit_level": fit_level,
-                "overall_fit_percentage": overall_pct,
                 "subject_fit_percentage": round((matched["subjects"] / total["subjects"]) * 100, 2) if total["subjects"] else 0,
                 "technical_skill_fit_percentage": round((matched["technical_skills"] / total["technical_skills"]) * 100, 2) if total["technical_skills"] else 0,
                 "non_technical_skill_fit_percentage": round((matched["non_technical_skills"] / total["non_technical_skills"]) * 100, 2) if total["non_technical_skills"] else 0
             })
 
-        results.sort(key=lambda x: x['match_score'], reverse=True)
+        results.sort(key=lambda x: x['match_score_percentage'], reverse=True)
 
         return jsonify({
             "success": True,
