@@ -41,6 +41,8 @@ def get_recommendations():
         subject_ids = set(data.get("subjects", []))
         tech_skills = set(data.get("technical_skills", []))
         non_tech_skills = set(data.get("non_technical_skills", []))
+        previous_fallback_ids = set(data.get("previous_fallback_ids", []))  # ✅ Optional input from UI
+        was_fallback_promoted = False  # ✅ Flag to track fallback improvement
 
         current_app.logger.info(f"Subjects: {subject_ids}")
         current_app.logger.info(f"Tech Skills: {tech_skills}")
@@ -120,6 +122,10 @@ def get_recommendations():
             if fit_level == "No Match":
                 continue  # Skip hard "No Match"
 
+            # ✅ Detect promotion from fallback
+            if fit_level != "Fallback Only" and pid in previous_fallback_ids:
+                was_fallback_promoted = True
+
             current_app.logger.info(
                 f"[{pos['position_name']}] Match Score: {matched_weight} | "
                 f"Min Fit: {base} | Fit Level: {fit_level} | Total Weight: {total_weight}"
@@ -147,6 +153,7 @@ def get_recommendations():
                 "success": True,
                 "fallback_possible": False,
                 "fallback_triggered": False,
+                "was_fallback_promoted": was_fallback_promoted,
                 "recommended_positions": strong_matches
             }), 200
 
@@ -155,6 +162,7 @@ def get_recommendations():
                 "success": True,
                 "fallback_possible": True,
                 "fallback_triggered": True,
+                "was_fallback_promoted": False,
                 "recommended_positions": fallbacks
             }), 200
 
@@ -162,6 +170,7 @@ def get_recommendations():
             "success": True,
             "fallback_possible": False,
             "fallback_triggered": False,
+            "was_fallback_promoted": False,
             "recommended_positions": []
         }), 200
 
