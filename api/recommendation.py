@@ -112,13 +112,13 @@ def get_recommendations():
 
             base = pos["min_fit_score"]
             if not base:
-                continue
+                continue  # Skip positions without a defined min fit score
 
+            # ✅ Determine fit level
             fit_level = get_fit_level(matched_weight, base)
 
-            # ✅ Skip only "No Match"
             if fit_level == "No Match":
-                continue
+                continue  # Skip hard "No Match"
 
             current_app.logger.info(
                 f"[{pos['position_name']}] Match Score: {matched_weight} | "
@@ -137,17 +137,32 @@ def get_recommendations():
                 "non_technical_skill_fit_percentage": round((matched["non_technical_skills"] / total["non_technical_skills"]) * 100, 2) if total["non_technical_skills"] else 0
             })
 
+        # ✅ Fallback logic: separate fallback from strong results
         results.sort(key=lambda x: x['match_score_percentage'], reverse=True)
+        fallbacks = [r for r in results if r["fit_level"] == "Fallback Only"]
+        strong_matches = [r for r in results if r["fit_level"] != "Fallback Only"]
 
-        # ✅ Fallback flags
-        has_fallback = any(r["fit_level"] == "Fallback Only" for r in results)
-        all_fallback = all(r["fit_level"] == "Fallback Only" for r in results)
+        if strong_matches:
+            return jsonify({
+                "success": True,
+                "fallback_possible": False,
+                "fallback_triggered": False,
+                "recommended_positions": strong_matches
+            }), 200
+
+        elif fallbacks:
+            return jsonify({
+                "success": True,
+                "fallback_possible": True,
+                "fallback_triggered": True,
+                "recommended_positions": fallbacks
+            }), 200
 
         return jsonify({
             "success": True,
-            "fallback_possible": has_fallback,
-            "fallback_triggered": has_fallback and all_fallback,
-            "recommended_positions": results
+            "fallback_possible": False,
+            "fallback_triggered": False,
+            "recommended_positions": []
         }), 200
 
     except Exception as e:
