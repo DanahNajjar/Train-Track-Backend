@@ -9,8 +9,6 @@ logging.basicConfig(level=logging.INFO)
 
 # ✅ Determine and load the correct environment file
 env_file = ".env.remote" if os.getenv("FLASK_ENV") == "production" else ".env.local"
-# ✅ Automatically load correct environment file based on FLASK_ENV
-env_file = ".env.remote" if os.getenv("FLASK_ENV") == "production" else ".env.local"
 load_dotenv(dotenv_path=env_file)
 logging.info(f"🔧 Loaded environment from: {env_file}")
 
@@ -18,28 +16,32 @@ logging.info(f"🔧 Loaded environment from: {env_file}")
 from api.wizard_routes import wizard_routes
 from api.recommendation import recommendation_routes
 
-# ✅ Create app
+# ✅ Create Flask App
 app = Flask(__name__, static_folder='static')
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "train_track_secret_key")
-CORS(app)
 
-# ✅ Register routes
+# ✅ Enable CORS for local frontend (fixes ALL wizard step API calls)
+CORS(app, origins=["http://127.0.0.1:8000"], supports_credentials=True)
+
+# ✅ Register blueprints
 app.register_blueprint(wizard_routes, url_prefix='/wizard')
 app.register_blueprint(recommendation_routes)
 
-# ✅ Default route
+# ✅ Health Check Route
 @app.route('/')
 def home():
     return "✅ Train Track Backend is Running!"
 
+# ✅ Serve static images like subject category icons
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     return send_from_directory(app.static_folder, filename)
 
+# ✅ Optional test route
 @app.route('/test')
 def test():
     return "✅ /test route is working!"
 
-# ✅ Run app
+# ✅ Run the app
 if __name__ == '__main__':
     app.run(debug=True)
