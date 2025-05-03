@@ -117,7 +117,8 @@ def get_recommendations():
             # ✅ Determine fit level based on actual match score
             fit_level = get_fit_level(matched_weight, base)
 
-            if fit_level in ["No Match", "Fallback Only"]:
+            # ✅ Updated: Exclude only No Match (allow Fallback Only)
+            if fit_level == "No Match":
                 continue
 
             # ✅ Log internal scoring for debugging
@@ -156,6 +157,7 @@ def get_recommendations():
     finally:
         if connection.is_connected():
             connection.close()
+
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
     try:
