@@ -112,16 +112,14 @@ def get_recommendations():
 
             base = pos["min_fit_score"]
             if not base:
-                continue  # Skip positions without min_fit_score
+                continue
 
-            # ✅ Determine fit level based on actual match score
             fit_level = get_fit_level(matched_weight, base)
 
-            # ✅ Updated: Exclude only No Match (allow Fallback Only)
+            # ✅ Skip only "No Match"
             if fit_level == "No Match":
                 continue
 
-            # ✅ Log internal scoring for debugging
             current_app.logger.info(
                 f"[{pos['position_name']}] Match Score: {matched_weight} | "
                 f"Min Fit: {base} | Fit Level: {fit_level} | Total Weight: {total_weight}"
@@ -141,10 +139,14 @@ def get_recommendations():
 
         results.sort(key=lambda x: x['match_score_percentage'], reverse=True)
 
+        # ✅ Fallback flags
+        has_fallback = any(r["fit_level"] == "Fallback Only" for r in results)
+        all_fallback = all(r["fit_level"] == "Fallback Only" for r in results)
+
         return jsonify({
             "success": True,
-            "fallback_possible": False,
-            "fallback_triggered": len(results) == 0,
+            "fallback_possible": has_fallback,
+            "fallback_triggered": has_fallback and all_fallback,
             "recommended_positions": results
         }), 200
 
