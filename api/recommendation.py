@@ -48,9 +48,11 @@ def get_recommendations():
         current_app.logger.info(f"Tech Skills: {tech_skills}")
         current_app.logger.info(f"Non-Tech Skills: {non_tech_skills}")
 
-        error = validate_user_input(subject_ids, tech_skills, non_tech_skills)
-        if error:
-            return jsonify({"success": False, "message": error}), 400
+        # ✅ Flexible validation: enforce limits only if not enhancing fallback
+        if not previous_fallback_ids:
+            error = validate_user_input(subject_ids, tech_skills, non_tech_skills)
+            if error:
+                return jsonify({"success": False, "message": error}), 400
 
         # ✅ Load prerequisite types
         cursor.execute("SELECT id, type FROM prerequisites")
