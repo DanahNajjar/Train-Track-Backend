@@ -54,11 +54,12 @@ def get_recommendations():
         current_app.logger.info(f"Tech Skills: {tech_skills}")
         current_app.logger.info(f"Non-Tech Skills: {non_tech_skills}")
 
-       # ✅ Flexible validation: enforce strict limits only if not enhancing fallback
-       is_fallback = bool(data.get("is_fallback", False)) or bool(data.get("previous_fallback_ids"))
-       error = validate_user_input(subject_ids, tech_skills, non_tech_skills, is_fallback)
-       if error:
-        return jsonify({"success": False, "message": error}), 400
+        # ✅ Flexible validation: enforce strict limits only if not enhancing fallback
+        is_fallback = bool(data.get("is_fallback", False)) or bool(data.get("previous_fallback_ids"))
+        error = validate_user_input(subject_ids, tech_skills, non_tech_skills, is_fallback)
+        if error:
+            return jsonify({"success": False, "message": error}), 400
+
 
         # ✅ Load prerequisite types
         cursor.execute("SELECT id, type FROM prerequisites")
