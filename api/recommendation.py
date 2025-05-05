@@ -210,11 +210,11 @@ def get_companies_for_positions():
         company_sizes_raw = request.args.get('company_sizes', '').strip()
         industries_raw = request.args.get('industries', '').strip()
 
-        # ✅ NEW: If all are empty → user skipped preferences
+        # ✅ If all are empty → user skipped preferences
         if not training_modes_raw and not company_sizes_raw and not industries_raw:
             return jsonify({
                 "success": True,
-                "positions": []  # Return empty result if no preferences selected
+                "companies": []
             }), 200
 
         connection = get_db_connection()
@@ -241,22 +241,19 @@ def get_companies_for_positions():
                 filters.append("c.industry_id IN ({})".format(','.join(['%s'] * len(ind_ids))))
                 params.extend(ind_ids)
 
-        # ✅ Build and execute query
+        # ✅ Query to fetch clean company data
         query = f"""
             SELECT 
-                c.id AS company_id,
+                DISTINCT c.id AS company_id,
                 c.company_name,
                 cs.description AS company_size,
                 i.name AS industry,
                 tm.description AS training_mode,
                 b.city AS location,
                 b.address,
-                b.website_link,
-                p.id AS position_id,
-                p.name AS position_name
+                b.website_link
             FROM companies c
             JOIN company_positions cp ON c.id = cp.company_id
-            JOIN positions p ON cp.position_id = p.id
             JOIN company_sizes cs ON c.company_sizes_id = cs.id
             JOIN industries i ON c.industry_id = i.id
             JOIN training_modes tm ON c.training_mode_id = tm.id
@@ -267,31 +264,9 @@ def get_companies_for_positions():
         cursor.execute(query, tuple(params))
         rows = cursor.fetchall()
 
-        # ✅ Group companies by position
-        grouped = {}
-        for row in rows:
-            pos_id = row['position_id']
-            if pos_id not in grouped:
-                grouped[pos_id] = {
-                    "position_id": pos_id,
-                    "position_name": row['position_name'],
-                    "companies": []
-                }
-
-            grouped[pos_id]['companies'].append({
-                "company_id": row['company_id'],
-                "company_name": row['company_name'],
-                "company_size": row['company_size'],
-                "industry": row['industry'],
-                "training_mode": row["training_mode"],
-                "location": row['location'],
-                "address": row['address'],
-                "website_link": row['website_link']
-            })
-
         return jsonify({
             "success": True,
-            "positions": list(grouped.values())
+            "companies": rows
         }), 200
 
     except Exception as e:
@@ -303,6 +278,7 @@ def get_companies_for_positions():
     finally:
         if 'connection' in locals() and connection.is_connected():
             connection.close()
+
 @recommendation_routes.route('/recommendations/fallback-prerequisites', methods=['POST'])
 def get_fallback_prerequisites():
     try:
