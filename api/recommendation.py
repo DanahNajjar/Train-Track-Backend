@@ -24,7 +24,7 @@ def get_fit_level(score, base):
     if score < base * 0.75:
         return "No Match"
     elif score < base:
-        return "Fallback Only"
+        return "Fallback"
     elif score < base * 1.25:
         return "Partial Match"
     elif score < base * 1.5:
@@ -132,7 +132,7 @@ def get_recommendations():
                 continue  # Skip hard "No Match"
 
             # ✅ Detect promotion from fallback
-            if fit_level != "Fallback Only" and pid in previous_fallback_ids:
+            if fit_level != "Fallback" and pid in previous_fallback_ids:
                 was_fallback_promoted = True
 
             current_app.logger.info(
@@ -154,8 +154,8 @@ def get_recommendations():
 
         # ✅ Fallback logic: separate fallback from strong results
         results.sort(key=lambda x: x['match_score_percentage'], reverse=True)
-        fallbacks = [r for r in results if r["fit_level"] == "Fallback Only"]
-        strong_matches = [r for r in results if r["fit_level"] != "Fallback Only"]
+        fallbacks = [r for r in results if r["fit_level"] == "Fallback"]
+        strong_matches = [r for r in results if r["fit_level"] != "Fallback"]
 
         if strong_matches:
             return jsonify({
@@ -354,7 +354,7 @@ def get_fallback_prerequisites():
                 continue
 
             fit_level = get_fit_level(matched_weight, base)
-            if fit_level == "Fallback Only":
+            if fit_level == "Fallback":
                 fallback_positions.append((pid, pos, matched))
 
         if not fallback_positions:
