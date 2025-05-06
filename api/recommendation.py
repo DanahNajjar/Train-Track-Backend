@@ -34,6 +34,7 @@ def get_fit_level(score, base):
 
 @recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
+    current_app.logger.info("🔥 /recommendations route HIT")
     current_app.logger.info("🚀 Starting recommendation processing...")
     data = request.get_json()
 
@@ -362,7 +363,7 @@ def get_fallback_prerequisites():
                 continue
 
             fit_level = get_fit_level(matched_weight, base)
-            if fit_level == "Fallback Only":
+            if fit_level == "Fallback":
                 fallback_positions.append((pid, pos, matched))
 
         if not fallback_positions:
