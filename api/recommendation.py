@@ -49,6 +49,14 @@ def get_recommendations():
         was_fallback_promoted = False
         no_matches = []
 
+        # ✅ Detect if user filled advanced preferences
+        advanced_preferences = data.get("advanced_preferences", {})
+        has_preferences = any([
+            advanced_preferences.get("training_modes"),
+            advanced_preferences.get("company_sizes"),
+            advanced_preferences.get("industries")
+        ])
+
         current_app.logger.info(f"Subjects: {subject_ids}")
         current_app.logger.info(f"Tech Skills: {tech_skills}")
         current_app.logger.info(f"Non-Tech Skills: {non_tech_skills}")
@@ -162,7 +170,8 @@ def get_recommendations():
                 "fallback_possible": False,
                 "fallback_triggered": False,
                 "was_fallback_promoted": was_fallback_promoted,
-                "recommended_positions": strong_matches
+                "recommended_positions": strong_matches,
+                "should_fetch_companies": has_preferences
             }), 200
 
         elif fallbacks:
@@ -171,7 +180,8 @@ def get_recommendations():
                 "fallback_possible": True,
                 "fallback_triggered": True,
                 "was_fallback_promoted": False,
-                "recommended_positions": fallbacks
+                "recommended_positions": fallbacks,
+                "should_fetch_companies": has_preferences
             }), 200
 
         elif no_matches:
@@ -181,7 +191,8 @@ def get_recommendations():
                 "fallback_triggered": False,
                 "was_fallback_promoted": False,
                 "recommended_positions": [],
-                "no_match_positions": no_matches
+                "no_match_positions": no_matches,
+                "should_fetch_companies": has_preferences
             }), 200
 
         return jsonify({
@@ -189,7 +200,8 @@ def get_recommendations():
             "fallback_possible": False,
             "fallback_triggered": False,
             "was_fallback_promoted": False,
-            "recommended_positions": []
+            "recommended_positions": [],
+            "should_fetch_companies": has_preferences
         }), 200
 
     except Exception as e:
@@ -201,7 +213,7 @@ def get_recommendations():
     finally:
         if 'connection' in locals() and connection.is_connected():
             connection.close()
-
+            
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
     try:
