@@ -128,8 +128,17 @@ def get_recommendations():
             # ✅ Determine fit level
             fit_level = get_fit_level(matched_weight, base)
 
-            if fit_level == "No Match":
-                continue  # Skip hard "No Match"
+        if fit_level == "No Match":
+            no_matches.append({
+                "fit_level": fit_level,
+                "match_score_percentage": round((matched_weight / total_weight) * 100, 2),
+                "position_id": pid,
+                "position_name": pos["position_name"],
+                "subject_fit_percentage": round((matched["subjects"] / total["subjects"]) * 100, 2) if total["subjects"] else 0,
+                "technical_skill_fit_percentage": round((matched["technical_skills"] / total["technical_skills"]) * 100, 2) if total["technical_skills"] else 0,
+                "non_technical_skill_fit_percentage": round((matched["non_technical_skills"] / total["non_technical_skills"]) * 100, 2) if total["non_technical_skills"] else 0
+                })
+                continue
 
             # ✅ Detect promotion from fallback
             if fit_level != "Fallback" and pid in previous_fallback_ids:
@@ -155,7 +164,7 @@ def get_recommendations():
         # ✅ Fallback logic: separate fallback from strong results
         results.sort(key=lambda x: x['match_score_percentage'], reverse=True)
         fallbacks = [r for r in results if r["fit_level"] == "Fallback"]
-        strong_matches = [r for r in results if r["fit_level"] != "Fallback"]
+        strong_matches = [r for r in results if r["fit_level"] != "Fallback Only"]
 
         if strong_matches:
             return jsonify({
@@ -174,6 +183,17 @@ def get_recommendations():
                 "was_fallback_promoted": False,
                 "recommended_positions": fallbacks
             }), 200
+            # ✅ If only No Matches exist — return them as a special case
+elif no_matches:
+    return jsonify({
+        "success": True,
+        "fallback_possible": False,
+        "fallback_triggered": False,
+        "was_fallback_promoted": False,
+        "recommended_positions": [],
+        "no_match_positions": no_matches
+    }), 200
+
 
         return jsonify({
             "success": True,
@@ -354,7 +374,7 @@ def get_fallback_prerequisites():
                 continue
 
             fit_level = get_fit_level(matched_weight, base)
-            if fit_level == "Fallback":
+            if fit_level == "Fallback Only":
                 fallback_positions.append((pid, pos, matched))
 
         if not fallback_positions:
