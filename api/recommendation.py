@@ -96,11 +96,13 @@ def get_recommendations():
                     "non_technical_skills": []
                 }
 
-            positions[pid][{
+            category = {
                 "Subject": "subjects",
                 "Technical Skill": "technical_skills",
                 "Non-Technical Skill": "non_technical_skills"
-            }[type_]].append((preq_id, weight))
+            }[type_]
+
+            positions[pid][category].append((preq_id, weight))
 
         results = []
         for pid, pos in positions.items():
@@ -140,6 +142,7 @@ def get_recommendations():
                 })
                 continue
 
+            # ✅ Detect promotion from fallback
             if fit_level != "Fallback" and pid in previous_fallback_ids:
                 was_fallback_promoted = True
 
@@ -157,7 +160,8 @@ def get_recommendations():
                 "position_name": pos["position_name"],
                 "subject_fit_percentage": round((matched["subjects"] / total["subjects"]) * 100, 2) if total["subjects"] else 0,
                 "technical_skill_fit_percentage": round((matched["technical_skills"] / total["technical_skills"]) * 100, 2) if total["technical_skills"] else 0,
-                "non_technical_skill_fit_percentage": round((matched["non_technical_skills"] / total["non_technical_skills"]) * 100, 2) if total["non_technical_skills"] else 0
+                "non_technical_skill_fit_percentage": round((matched["non_technical_skills"] / total["non_technical_skills"]) * 100, 2) if total["non_technical_skills"] else 0,
+                "was_promoted_from_fallback": pid in previous_fallback_ids and fit_level != "Fallback"
             })
 
         results.sort(key=lambda x: x['match_score_percentage'], reverse=True)
@@ -213,7 +217,7 @@ def get_recommendations():
     finally:
         if 'connection' in locals() and connection.is_connected():
             connection.close()
-            
+
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
     try:
@@ -307,7 +311,6 @@ def get_fallback_prerequisites():
         subject_ids = set(data.get("subjects", []))
         tech_skills = set(data.get("technical_skills", []))
         non_tech_skills = set(data.get("non_technical_skills", []))
-        previous_fallback_ids = set(data.get("previous_fallback_ids", []))  # ✅ used for filtering
 
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
@@ -350,13 +353,9 @@ def get_fallback_prerequisites():
                 "Non-Technical Skill": "non_technical_skills"
             }[type_]].append((preq_id, weight))
 
-        # ✅ Loop through all positions and return fallback matches
-        fallback_results = []
-
+        # Identify fallback-only positions
+        fallback_positions = []
         for pid, pos in positions.items():
-            if previous_fallback_ids and pid not in previous_fallback_ids:
-                continue  # only check fallback-eligible positions
-
             total = {
                 "subjects": sum(w for _, w in pos["subjects"]),
                 "technical_skills": sum(w for _, w in pos["technical_skills"]),
@@ -380,28 +379,29 @@ def get_fallback_prerequisites():
                 continue
 
             fit_level = get_fit_level(matched_weight, base)
-
             if fit_level == "Fallback":
-                missing_subjects = [pid_ for pid_, _ in pos["subjects"] if pid_ not in subject_ids]
-                missing_tech_skills = [pid_ for pid_, _ in pos["technical_skills"] if pid_ not in tech_skills]
-                missing_non_tech_skills = [pid_ for pid_, _ in pos["non_technical_skills"] if pid_ not in non_tech_skills]
+                fallback_positions.append((pid, pos, matched))
 
-                fallback_results.append({
-                    "position_id": pid,
-                    "position_name": pos["position_name"],
-                    "missing_prerequisites": {
-                        "subjects": missing_subjects,
-                        "technical_skills": missing_tech_skills,
-                        "non_technical_skills": missing_non_tech_skills
-                    }
-                })
-
-        if not fallback_results:
+        if not fallback_positions:
             return jsonify({"success": False, "message": "No fallback positions found."}), 404
+
+        # Pick the top fallback position (first in list)
+        top_pid, top_pos, top_matched = fallback_positions[0]
+
+        # Collect missing prerequisite IDs
+        missing_subjects = [pid_ for pid_, _ in top_pos["subjects"] if pid_ not in subject_ids]
+        missing_tech_skills = [pid_ for pid_, _ in top_pos["technical_skills"] if pid_ not in tech_skills]
+        missing_non_tech_skills = [pid_ for pid_, _ in top_pos["non_technical_skills"] if pid_ not in non_tech_skills]
 
         return jsonify({
             "success": True,
-            "fallback_positions": fallback_results
+            "position_id": top_pid,
+            "position_name": top_pos["position_name"],
+            "missing_prerequisites": {
+                "subjects": missing_subjects,
+                "technical_skills": missing_tech_skills,
+                "non_technical_skills": missing_non_tech_skills
+            }
         }), 200
 
     except Exception as e:
