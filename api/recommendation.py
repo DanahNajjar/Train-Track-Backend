@@ -208,21 +208,21 @@ def get_fallback_prerequisites():
         missing_tech_skills = [pid_ for pid_, _ in top_pos["technical_skills"] if pid_ not in tech_skills]
         missing_non_tech_skills = [pid_ for pid_, _ in top_pos["non_technical_skills"] if pid_ not in non_tech_skills]
 
-       return jsonify({
-    "success": True,
-    "position_id": top_pid,
-    "position_name": top_pos["position_name"],
-    "missing_prerequisites": {
-        "subjects": missing_subjects,
-        "technical_skills": missing_tech_skills,
-        "non_technical_skills": missing_non_tech_skills
-    },
-    "current_selections": {
-        "subjects": list(subject_ids),
-        "technical_skills": list(tech_skills),
-        "non_technical_skills": list(non_tech_skills)
-    }
-}), 200
+        return jsonify({
+            "success": True,
+            "position_id": top_pid,
+            "position_name": top_pos["position_name"],
+            "missing_prerequisites": {
+                "subjects": missing_subjects,
+                "technical_skills": missing_tech_skills,
+                "non_technical_skills": missing_non_tech_skills
+            },
+            "current_selections": {
+                "subjects": list(subject_ids),
+                "technical_skills": list(tech_skills),
+                "non_technical_skills": list(non_tech_skills)
+            }
+        }), 200
 
     except Exception as e:
         import traceback
@@ -232,4 +232,3 @@ def get_fallback_prerequisites():
     finally:
         if connection.is_connected():
             connection.close()
-
