@@ -39,17 +39,12 @@ def get_recommendations():
         tech_skills = set(data.get("technical_skills", []))
         non_tech_skills = set(data.get("non_technical_skills", []))
 
-        # Optional: Preferences (if needed)
-        preferences = data.get("advanced_preferences", {})
-
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # Load all prerequisite types
         cursor.execute("SELECT id, type FROM prerequisites")
         types = {int(row['id']): row['type'] for row in cursor.fetchall()}
 
-        # Load position-prerequisites and positions
         cursor.execute("""
             SELECT pp.position_id, pp.prerequisite_id, pp.weight,
                    p.name AS position_name, p.min_fit_score
@@ -77,47 +72,58 @@ def get_recommendations():
                     "non_technical_skills": []
                 }
 
-            positions[pid][{
+            key = {
                 "Subject": "subjects",
                 "Technical Skill": "technical_skills",
                 "Non-Technical Skill": "non_technical_skills"
-            }[type_]].append((preq_id, weight))
+            }[type_]
+            positions[pid][key].append((preq_id, weight))
 
-        # Match logic
         results = []
         for pid, pos in positions.items():
-            total = {
+            total_weights = {
                 "subjects": sum(w for _, w in pos["subjects"]),
                 "technical_skills": sum(w for _, w in pos["technical_skills"]),
                 "non_technical_skills": sum(w for _, w in pos["non_technical_skills"])
             }
-
-            matched = {
+            matched_weights = {
                 "subjects": sum(w for pid_, w in pos["subjects"] if pid_ in subject_ids),
                 "technical_skills": sum(w for pid_, w in pos["technical_skills"] if pid_ in tech_skills),
                 "non_technical_skills": sum(w for pid_, w in pos["non_technical_skills"] if pid_ in non_tech_skills)
             }
 
-            total_weight = sum(total.values())
-            matched_weight = sum(matched.values())
+            total_score = sum(total_weights.values())
+            matched_score = sum(matched_weights.values())
 
-            if total_weight == 0 or matched_weight == 0:
+            if total_score == 0 or matched_score == 0:
                 continue
 
             base = pos["min_fit_score"]
             if not base:
                 continue
 
-            match_level = get_fit_level(matched_weight, base)
-            if match_level != "No Match":
-                results.append({
-                    "position_id": pid,
-                    "position_name": pos["position_name"],
-                    "match_percentage": round((matched_weight / base) * 100, 2),
-                    "match_level": match_level
-                })
+            fit_level = get_fit_level(matched_score, base)
 
-        return jsonify({"success": True, "results": results}), 200
+            def percent(matched, total):
+                return round((matched / total * 100), 2) if total > 0 else 0.0
+
+            results.append({
+                "position_id": pid,
+                "position_name": pos["position_name"],
+                "fit_level": fit_level,
+                "match_score": matched_score,
+                "overall_fit_percentage": round((matched_score / base) * 100, 2),
+                "subject_fit_percentage": percent(matched_weights["subjects"], total_weights["subjects"]),
+                "technical_skill_fit_percentage": percent(matched_weights["technical_skills"], total_weights["technical_skills"]),
+                "non_technical_skill_fit_percentage": percent(matched_weights["non_technical_skills"], total_weights["non_technical_skills"])
+            })
+
+        return jsonify({
+            "success": True,
+            "fallback_possible": False,
+            "fallback_triggered": False,
+            "recommended_positions": results
+        }), 200
 
     except Exception as e:
         import traceback
@@ -125,7 +131,7 @@ def get_recommendations():
         return jsonify({"success": False, "message": str(e)}), 500
 
     finally:
-        if 'connection' in locals() and connection.is_connected():
+        if connection.is_connected():
             connection.close()
 
 
