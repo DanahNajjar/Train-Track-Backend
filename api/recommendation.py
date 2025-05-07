@@ -32,117 +32,6 @@ def get_fit_level(score, base):
     else:
         return "Perfect Match"
 
-@recommendation_routes.route('/recommendations/fallback-prerequisites', methods=['POST'])
-def get_fallback_prerequisites():
-    try:
-        data = request.get_json()
-        subject_ids = set(data.get("subjects", []))
-        tech_skills = set(data.get("technical_skills", []))
-        non_tech_skills = set(data.get("non_technical_skills", []))
-
-        connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
-
-        # Load prerequisite types
-        cursor.execute("SELECT id, type FROM prerequisites")
-        types = {int(row['id']): row['type'] for row in cursor.fetchall()}
-
-        # Load positions and prerequisites
-        cursor.execute("""
-            SELECT pp.position_id, pp.prerequisite_id, pp.weight,
-                   p.name AS position_name, p.min_fit_score
-            FROM position_prerequisites pp
-            JOIN positions p ON pp.position_id = p.id
-        """)
-        raw_data = cursor.fetchall()
-
-        positions = {}
-        for row in raw_data:
-            pid = row['position_id']
-            preq_id = int(row['prerequisite_id'])
-            weight = row['weight']
-            type_ = types.get(preq_id)
-
-            if not type_ or type_ == "Major":
-                continue
-
-            if pid not in positions:
-                positions[pid] = {
-                    "position_name": row['position_name'],
-                    "min_fit_score": row['min_fit_score'],
-                    "subjects": [],
-                    "technical_skills": [],
-                    "non_technical_skills": []
-                }
-
-            positions[pid][{
-                "Subject": "subjects",
-                "Technical Skill": "technical_skills",
-                "Non-Technical Skill": "non_technical_skills"
-            }[type_]].append((preq_id, weight))
-
-        # Identify fallback-only positions
-        fallback_positions = []
-        for pid, pos in positions.items():
-            total = {
-                "subjects": sum(w for _, w in pos["subjects"]),
-                "technical_skills": sum(w for _, w in pos["technical_skills"]),
-                "non_technical_skills": sum(w for _, w in pos["non_technical_skills"])
-            }
-
-            matched = {
-                "subjects": sum(w for pid_, w in pos["subjects"] if pid_ in subject_ids),
-                "technical_skills": sum(w for pid_, w in pos["technical_skills"] if pid_ in tech_skills),
-                "non_technical_skills": sum(w for pid_, w in pos["non_technical_skills"] if pid_ in non_tech_skills)
-            }
-
-            total_weight = sum(total.values())
-            matched_weight = sum(matched.values())
-
-            if total_weight == 0 or matched_weight == 0:
-                continue
-
-            base = pos["min_fit_score"]
-            if not base:
-                continue
-
-            fit_level = get_fit_level(matched_weight, base)
-            if fit_level == "Fallback":
-                fallback_positions.append((pid, pos))
-
-        if not fallback_positions:
-            return jsonify({"success": False, "message": "No fallback positions found."}), 404
-
-        top_pid, top_pos = fallback_positions[0]
-
-        missing_subjects = [pid_ for pid_, _ in top_pos["subjects"] if pid_ not in subject_ids]
-        missing_tech_skills = [pid_ for pid_, _ in top_pos["technical_skills"] if pid_ not in tech_skills]
-        missing_non_tech_skills = [pid_ for pid_, _ in top_pos["non_technical_skills"] if pid_ not in non_tech_skills]
-
-        return jsonify({
-            "success": True,
-            "position_id": top_pid,
-            "position_name": top_pos["position_name"],
-            "missing_prerequisites": {
-                "subjects": missing_subjects,
-                "technical_skills": missing_tech_skills,
-                "non_technical_skills": missing_non_tech_skills
-            },
-            "user_selections": {
-                "subjects": list(subject_ids),
-                "technical_skills": list(tech_skills),
-                "non_technical_skills": list(non_tech_skills)
-            }
-        }), 200
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"success": False, "message": str(e)}), 500
-
-    finally:
-        if connection.is_connected():
-            connection.close()
 
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
@@ -319,16 +208,21 @@ def get_fallback_prerequisites():
         missing_tech_skills = [pid_ for pid_, _ in top_pos["technical_skills"] if pid_ not in tech_skills]
         missing_non_tech_skills = [pid_ for pid_, _ in top_pos["non_technical_skills"] if pid_ not in non_tech_skills]
 
-        return jsonify({
-            "success": True,
-            "position_id": top_pid,
-            "position_name": top_pos["position_name"],
-            "missing_prerequisites": {
-                "subjects": missing_subjects,
-                "technical_skills": missing_tech_skills,
-                "non_technical_skills": missing_non_tech_skills
-            }
-        }), 200
+       return jsonify({
+    "success": True,
+    "position_id": top_pid,
+    "position_name": top_pos["position_name"],
+    "missing_prerequisites": {
+        "subjects": missing_subjects,
+        "technical_skills": missing_tech_skills,
+        "non_technical_skills": missing_non_tech_skills
+    },
+    "current_selections": {
+        "subjects": list(subject_ids),
+        "technical_skills": list(tech_skills),
+        "non_technical_skills": list(non_tech_skills)
+    }
+}), 200
 
     except Exception as e:
         import traceback
