@@ -31,6 +31,102 @@ def get_fit_level(score, base):
         return "Very Strong Match"
     else:
         return "Perfect Match"
+@recommendation_routes.route('/recommendations', methods=['POST'])
+def get_recommendations():
+    try:
+        data = request.get_json()
+        subject_ids = set(data.get("subjects", []))
+        tech_skills = set(data.get("technical_skills", []))
+        non_tech_skills = set(data.get("non_technical_skills", []))
+
+        # Optional: Preferences (if needed)
+        preferences = data.get("advanced_preferences", {})
+
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        # Load all prerequisite types
+        cursor.execute("SELECT id, type FROM prerequisites")
+        types = {int(row['id']): row['type'] for row in cursor.fetchall()}
+
+        # Load position-prerequisites and positions
+        cursor.execute("""
+            SELECT pp.position_id, pp.prerequisite_id, pp.weight,
+                   p.name AS position_name, p.min_fit_score
+            FROM position_prerequisites pp
+            JOIN positions p ON pp.position_id = p.id
+        """)
+        raw_data = cursor.fetchall()
+
+        positions = {}
+        for row in raw_data:
+            pid = row['position_id']
+            preq_id = int(row['prerequisite_id'])
+            weight = row['weight']
+            type_ = types.get(preq_id)
+
+            if not type_ or type_ == "Major":
+                continue
+
+            if pid not in positions:
+                positions[pid] = {
+                    "position_name": row['position_name'],
+                    "min_fit_score": row['min_fit_score'],
+                    "subjects": [],
+                    "technical_skills": [],
+                    "non_technical_skills": []
+                }
+
+            positions[pid][{
+                "Subject": "subjects",
+                "Technical Skill": "technical_skills",
+                "Non-Technical Skill": "non_technical_skills"
+            }[type_]].append((preq_id, weight))
+
+        # Match logic
+        results = []
+        for pid, pos in positions.items():
+            total = {
+                "subjects": sum(w for _, w in pos["subjects"]),
+                "technical_skills": sum(w for _, w in pos["technical_skills"]),
+                "non_technical_skills": sum(w for _, w in pos["non_technical_skills"])
+            }
+
+            matched = {
+                "subjects": sum(w for pid_, w in pos["subjects"] if pid_ in subject_ids),
+                "technical_skills": sum(w for pid_, w in pos["technical_skills"] if pid_ in tech_skills),
+                "non_technical_skills": sum(w for pid_, w in pos["non_technical_skills"] if pid_ in non_tech_skills)
+            }
+
+            total_weight = sum(total.values())
+            matched_weight = sum(matched.values())
+
+            if total_weight == 0 or matched_weight == 0:
+                continue
+
+            base = pos["min_fit_score"]
+            if not base:
+                continue
+
+            match_level = get_fit_level(matched_weight, base)
+            if match_level != "No Match":
+                results.append({
+                    "position_id": pid,
+                    "position_name": pos["position_name"],
+                    "match_percentage": round((matched_weight / base) * 100, 2),
+                    "match_level": match_level
+                })
+
+        return jsonify({"success": True, "results": results}), 200
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "message": str(e)}), 500
+
+    finally:
+        if 'connection' in locals() and connection.is_connected():
+            connection.close()
 
 
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
