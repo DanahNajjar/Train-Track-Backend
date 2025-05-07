@@ -34,14 +34,37 @@ def get_fit_level(score, base):
 
 @recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
+    current_app.logger.info("🔥 /recommendations route HIT")
+    current_app.logger.info("🚀 Starting recommendation processing...")
+    data = request.get_json()
+
     try:
-        data = request.get_json()
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+
         subject_ids = set(data.get("subjects", []))
         tech_skills = set(data.get("technical_skills", []))
         non_tech_skills = set(data.get("non_technical_skills", []))
+        previous_fallback_ids = set(data.get("previous_fallback_ids", []))
+        was_fallback_promoted = False
+        no_matches = []
 
-        connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
+        # ✅ Detect if user filled advanced preferences
+        advanced_preferences = data.get("advanced_preferences", {})
+        has_preferences = any([
+            advanced_preferences.get("training_modes"),
+            advanced_preferences.get("company_sizes"),
+            advanced_preferences.get("industries")
+        ])
+
+        current_app.logger.info(f"Subjects: {subject_ids}")
+        current_app.logger.info(f"Tech Skills: {tech_skills}")
+        current_app.logger.info(f"Non-Tech Skills: {non_tech_skills}")
+
+        is_fallback = bool(data.get("is_fallback", False)) or bool(previous_fallback_ids)
+        error = validate_user_input(subject_ids, tech_skills, non_tech_skills, is_fallback)
+        if error:
+            return jsonify({"success": False, "message": error}), 400
 
         cursor.execute("SELECT id, type FROM prerequisites")
         types = {int(row['id']): row['type'] for row in cursor.fetchall()}
@@ -73,82 +96,124 @@ def get_recommendations():
                     "non_technical_skills": []
                 }
 
-            key = {
+            positions[pid][{
                 "Subject": "subjects",
                 "Technical Skill": "technical_skills",
                 "Non-Technical Skill": "non_technical_skills"
-            }[type_]
-            positions[pid][key].append((preq_id, weight))
+            }[type_]].append((preq_id, weight))
 
         results = []
         for pid, pos in positions.items():
-            total_weights = {
+            total = {
                 "subjects": sum(w for _, w in pos["subjects"]),
                 "technical_skills": sum(w for _, w in pos["technical_skills"]),
                 "non_technical_skills": sum(w for _, w in pos["non_technical_skills"])
             }
-            matched_weights = {
+
+            matched = {
                 "subjects": sum(w for pid_, w in pos["subjects"] if pid_ in subject_ids),
                 "technical_skills": sum(w for pid_, w in pos["technical_skills"] if pid_ in tech_skills),
                 "non_technical_skills": sum(w for pid_, w in pos["non_technical_skills"] if pid_ in non_tech_skills)
             }
 
-            total_score = sum(total_weights.values())
-            matched_score = sum(matched_weights.values())
+            total_weight = sum(total.values())
+            matched_weight = sum(matched.values())
 
-            if total_score == 0 or matched_score == 0:
+            if total_weight == 0 or matched_weight == 0:
                 continue
 
             base = pos["min_fit_score"]
             if not base:
                 continue
 
-            fit_level = get_fit_level(matched_score, base)
+            fit_level = get_fit_level(matched_weight, base)
 
-            def percent(matched, total):
-                return round((matched / total * 100), 2) if total > 0 else 0.0
+            if fit_level == "No Match":
+                no_matches.append({
+                    "fit_level": fit_level,
+                    "match_score_percentage": round((matched_weight / total_weight) * 100, 2),
+                    "position_id": pid,
+                    "position_name": pos["position_name"],
+                    "subject_fit_percentage": round((matched["subjects"] / total["subjects"]) * 100, 2) if total["subjects"] else 0,
+                    "technical_skill_fit_percentage": round((matched["technical_skills"] / total["technical_skills"]) * 100, 2) if total["technical_skills"] else 0,
+                    "non_technical_skill_fit_percentage": round((matched["non_technical_skills"] / total["non_technical_skills"]) * 100, 2) if total["non_technical_skills"] else 0
+                })
+                continue
+
+            if fit_level != "Fallback" and pid in previous_fallback_ids:
+                was_fallback_promoted = True
+
+            current_app.logger.info(
+                f"[{pos['position_name']}] Match Score: {matched_weight} | "
+                f"Min Fit: {base} | Fit Level: {fit_level} | Total Weight: {total_weight}"
+            )
+
+            overall_pct = round((matched_weight / total_weight) * 100, 2)
 
             results.append({
+                "fit_level": fit_level,
+                "match_score_percentage": overall_pct,
                 "position_id": pid,
                 "position_name": pos["position_name"],
-                "fit_level": fit_level,
-                "match_score": matched_score,
-                "overall_fit_percentage": round((matched_score / base) * 100, 2),
-                "subject_fit_percentage": percent(matched_weights["subjects"], total_weights["subjects"]),
-                "technical_skill_fit_percentage": percent(matched_weights["technical_skills"], total_weights["technical_skills"]),
-                "non_technical_skill_fit_percentage": percent(matched_weights["non_technical_skills"], total_weights["non_technical_skills"])
+                "subject_fit_percentage": round((matched["subjects"] / total["subjects"]) * 100, 2) if total["subjects"] else 0,
+                "technical_skill_fit_percentage": round((matched["technical_skills"] / total["technical_skills"]) * 100, 2) if total["technical_skills"] else 0,
+                "non_technical_skill_fit_percentage": round((matched["non_technical_skills"] / total["non_technical_skills"]) * 100, 2) if total["non_technical_skills"] else 0
             })
 
-        top_valid_matches = [pos for pos in results if pos["fit_level"] not in ["No Match", "Fallback"]]
-        fallback_possible = any(pos["fit_level"] == "Fallback" for pos in results)
+        results.sort(key=lambda x: x['match_score_percentage'], reverse=True)
+        fallbacks = [r for r in results if r["fit_level"] == "Fallback"]
+        strong_matches = [r for r in results if r["fit_level"] != "Fallback"]
 
-        if top_valid_matches:
+        if strong_matches:
             return jsonify({
                 "success": True,
+                "fallback_possible": False,
                 "fallback_triggered": False,
-                "fallback_possible": fallback_possible,
-                "fetch_companies": True,
-                "recommended_positions": top_valid_matches
+                "was_fallback_promoted": was_fallback_promoted,
+                "recommended_positions": strong_matches,
+                "should_fetch_companies": has_preferences
             }), 200
-        else:
+
+        elif fallbacks:
             return jsonify({
                 "success": True,
-                "fallback_triggered": False,
                 "fallback_possible": True,
-                "fetch_companies": False,
-                "recommended_positions": []
+                "fallback_triggered": True,
+                "was_fallback_promoted": False,
+                "recommended_positions": fallbacks,
+                "should_fetch_companies": has_preferences
             }), 200
+
+        elif no_matches:
+            return jsonify({
+                "success": True,
+                "fallback_possible": False,
+                "fallback_triggered": False,
+                "was_fallback_promoted": False,
+                "recommended_positions": [],
+                "no_match_positions": no_matches,
+                "should_fetch_companies": has_preferences
+            }), 200
+
+        return jsonify({
+            "success": True,
+            "fallback_possible": False,
+            "fallback_triggered": False,
+            "was_fallback_promoted": False,
+            "recommended_positions": [],
+            "should_fetch_companies": has_preferences
+        }), 200
 
     except Exception as e:
         import traceback
         traceback.print_exc()
+        current_app.logger.error(f"❌ Error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
     finally:
-        if connection.is_connected():
+        if 'connection' in locals() and connection.is_connected():
             connection.close()
-
-
+            
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
     try:
@@ -332,11 +397,6 @@ def get_fallback_prerequisites():
                 "subjects": missing_subjects,
                 "technical_skills": missing_tech_skills,
                 "non_technical_skills": missing_non_tech_skills
-            },
-            "current_selections": {
-                "subjects": list(subject_ids),
-                "technical_skills": list(tech_skills),
-                "non_technical_skills": list(non_tech_skills)
             }
         }), 200
 
@@ -348,3 +408,6 @@ def get_fallback_prerequisites():
     finally:
         if connection.is_connected():
             connection.close()
+
+
+
