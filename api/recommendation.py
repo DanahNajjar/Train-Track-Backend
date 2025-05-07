@@ -31,6 +31,7 @@ def get_fit_level(score, base):
         return "Very Strong Match"
     else:
         return "Perfect Match"
+
 @recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
     try:
@@ -118,12 +119,25 @@ def get_recommendations():
                 "non_technical_skill_fit_percentage": percent(matched_weights["non_technical_skills"], total_weights["non_technical_skills"])
             })
 
-        return jsonify({
-            "success": True,
-            "fallback_possible": False,
-            "fallback_triggered": False,
-            "recommended_positions": results
-        }), 200
+        top_valid_matches = [pos for pos in results if pos["fit_level"] not in ["No Match", "Fallback"]]
+        fallback_possible = any(pos["fit_level"] == "Fallback" for pos in results)
+
+        if top_valid_matches:
+            return jsonify({
+                "success": True,
+                "fallback_triggered": False,
+                "fallback_possible": fallback_possible,
+                "fetch_companies": True,
+                "recommended_positions": top_valid_matches
+            }), 200
+        else:
+            return jsonify({
+                "success": True,
+                "fallback_triggered": False,
+                "fallback_possible": True,
+                "fetch_companies": False,
+                "recommended_positions": []
+            }), 200
 
     except Exception as e:
         import traceback
