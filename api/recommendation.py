@@ -165,6 +165,8 @@ def get_recommendations():
             })
 
         results.sort(key=lambda x: x['match_score_percentage'], reverse=True)
+        from flask import session
+        session["recommended_positions"] = [r["position_id"] for r in results]
         fallbacks = [r for r in results if r["fit_level"] == "Fallback"]
         strong_matches = [r for r in results if r["fit_level"] != "Fallback"]
 
@@ -415,10 +417,19 @@ def get_fallback_prerequisites():
 @recommendation_routes.route('/position/<int:position_id>', methods=['GET'])
 def get_position_details(position_id):
     try:
+        # ✅ 1. Check session for recommended position IDs
+        allowed_ids = session.get("recommended_positions", [])
+        if position_id not in allowed_ids:
+            return jsonify({
+                "success": False,
+                "message": "Access denied. This position was not recommended."
+            }), 403
+
+        # ✅ 2. Connect to DB
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # ✅ Get position core data
+        # ✅ 3. Get position info
         cursor.execute("""
             SELECT name, description, tasks, tips
             FROM positions
@@ -428,10 +439,10 @@ def get_position_details(position_id):
         if not position:
             return jsonify({"success": False, "message": "Position not found."}), 404
 
-        # ✅ Format tasks into a list
+        # ✅ 4. Format tasks
         tasks = position["tasks"].split("\n") if position["tasks"] else []
 
-        # ✅ Fetch subject prerequisites
+        # ✅ 5. Fetch subject prerequisites
         cursor.execute("""
             SELECT p.name
             FROM position_prerequisites pp
@@ -440,7 +451,7 @@ def get_position_details(position_id):
         """, (position_id,))
         subjects = [row["name"] for row in cursor.fetchall()]
 
-        # ✅ Technical skills
+        # ✅ 6. Fetch technical skills
         cursor.execute("""
             SELECT p.name
             FROM position_prerequisites pp
@@ -449,7 +460,7 @@ def get_position_details(position_id):
         """, (position_id,))
         technical_skills = [row["name"] for row in cursor.fetchall()]
 
-        # ✅ Non-technical skills
+        # ✅ 7. Fetch non-technical skills
         cursor.execute("""
             SELECT p.name
             FROM position_prerequisites pp
@@ -458,7 +469,7 @@ def get_position_details(position_id):
         """, (position_id,))
         non_technical_skills = [row["name"] for row in cursor.fetchall()]
 
-        # ✅ Learning resources
+        # ✅ 8. Fetch learning resources
         cursor.execute("""
             SELECT resource_type, title, url
             FROM learning_resources
@@ -466,6 +477,7 @@ def get_position_details(position_id):
         """, (position_id,))
         resources = cursor.fetchall()
 
+        # ✅ 9. Return structured JSON
         return jsonify({
             "success": True,
             "position_name": position["name"],
@@ -487,6 +499,3 @@ def get_position_details(position_id):
         if connection.is_connected():
             cursor.close()
             connection.close()
-
-
-
