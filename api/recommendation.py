@@ -412,6 +412,81 @@ def get_fallback_prerequisites():
     finally:
         if connection.is_connected():
             connection.close()
+@recommendation_routes.route('/position/<int:position_id>', methods=['GET'])
+def get_position_details(position_id):
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        # ✅ Get position core data
+        cursor.execute("""
+            SELECT name, description, tasks, tips
+            FROM positions
+            WHERE id = %s
+        """, (position_id,))
+        position = cursor.fetchone()
+        if not position:
+            return jsonify({"success": False, "message": "Position not found."}), 404
+
+        # ✅ Format tasks into a list
+        tasks = position["tasks"].split("\n") if position["tasks"] else []
+
+        # ✅ Fetch subject prerequisites
+        cursor.execute("""
+            SELECT p.prerequisite_name
+            FROM position_prerequisites pp
+            JOIN prerequisites p ON pp.prerequisite_id = p.id
+            WHERE pp.position_id = %s AND p.prerequisite_type = 'Subject'
+        """, (position_id,))
+        subjects = [row["prerequisite_name"] for row in cursor.fetchall()]
+
+        # ✅ Technical skills
+        cursor.execute("""
+            SELECT p.prerequisite_name
+            FROM position_prerequisites pp
+            JOIN prerequisites p ON pp.prerequisite_id = p.id
+            WHERE pp.position_id = %s AND p.prerequisite_type = 'Technical Skill'
+        """, (position_id,))
+        technical_skills = [row["prerequisite_name"] for row in cursor.fetchall()]
+
+        # ✅ Non-technical skills
+        cursor.execute("""
+            SELECT p.prerequisite_name
+            FROM position_prerequisites pp
+            JOIN prerequisites p ON pp.prerequisite_id = p.id
+            WHERE pp.position_id = %s AND p.prerequisite_type = 'Non-Technical Skill'
+        """, (position_id,))
+        non_technical_skills = [row["prerequisite_name"] for row in cursor.fetchall()]
+
+        # ✅ Learning resources
+        cursor.execute("""
+            SELECT resource_type, title, url
+            FROM learning_resources
+            WHERE position_id = %s
+        """, (position_id,))
+        resources = cursor.fetchall()
+
+        return jsonify({
+            "success": True,
+            "position_name": position["name"],
+            "description": position["description"],
+            "tasks": tasks,
+            "tips": position["tips"],
+            "subjects": subjects,
+            "technical_skills": technical_skills,
+            "non_technical_skills": non_technical_skills,
+            "resources": resources
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "message": str(e)}), 500
+
+    finally:
+        if connection.is_connected():
+            cursor.close()
+            connection.close()
 
 
 
