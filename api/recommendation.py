@@ -433,30 +433,30 @@ def get_position_details(position_id):
 
         # ✅ Fetch subject prerequisites
         cursor.execute("""
-            SELECT p.prerequisite_name
+            SELECT p.name
             FROM position_prerequisites pp
             JOIN prerequisites p ON pp.prerequisite_id = p.id
-            WHERE pp.position_id = %s AND p.prerequisite_type = 'Subject'
+            WHERE pp.position_id = %s AND p.type = 'Subject'
         """, (position_id,))
-        subjects = [row["prerequisite_name"] for row in cursor.fetchall()]
+        subjects = [row["name"] for row in cursor.fetchall()]
 
         # ✅ Technical skills
         cursor.execute("""
-            SELECT p.prerequisite_name
+            SELECT p.name
             FROM position_prerequisites pp
             JOIN prerequisites p ON pp.prerequisite_id = p.id
-            WHERE pp.position_id = %s AND p.prerequisite_type = 'Technical Skill'
+            WHERE pp.position_id = %s AND p.type = 'Technical Skill'
         """, (position_id,))
-        technical_skills = [row["prerequisite_name"] for row in cursor.fetchall()]
+        technical_skills = [row["name"] for row in cursor.fetchall()]
 
         # ✅ Non-technical skills
         cursor.execute("""
-            SELECT p.prerequisite_name
+            SELECT p.name
             FROM position_prerequisites pp
             JOIN prerequisites p ON pp.prerequisite_id = p.id
-            WHERE pp.position_id = %s AND p.prerequisite_type = 'Non-Technical Skill'
+            WHERE pp.position_id = %s AND p.type = 'Non-Technical Skill'
         """, (position_id,))
-        non_technical_skills = [row["prerequisite_name"] for row in cursor.fetchall()]
+        non_technical_skills = [row["name"] for row in cursor.fetchall()]
 
         # ✅ Learning resources
         cursor.execute("""
