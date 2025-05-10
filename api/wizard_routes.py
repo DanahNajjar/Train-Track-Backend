@@ -389,22 +389,23 @@ def submit_wizard():
         full_name = data.get('full_name')
         gender = data.get('gender')
         major_id = data.get('major_id')
+        date_of_birth = data.get('date_of_birth')  # ✅ NEW FIELD
         selected_subject_ids = data.get('selected_subject_ids', [])
         selected_technical_skill_ids = data.get('selected_technical_skill_ids', [])
         selected_non_technical_skill_ids = data.get('selected_non_technical_skill_ids', [])
         advanced_preferences = data.get('advanced_preferences')  # can be None or {}
 
-        if not all([full_name, gender, major_id]):
+        if not all([full_name, gender, major_id, date_of_birth]):
             return jsonify({"success": False, "message": "Missing basic user info."}), 400
 
         connection = get_db_connection()
         cursor = connection.cursor()
 
-        # Save basic info
+        # ✅ Save basic info including date_of_birth
         cursor.execute("""
-            INSERT INTO wizard_submissions (full_name, gender, major_id)
-            VALUES (%s, %s, %s)
-        """, (full_name, gender, major_id))
+            INSERT INTO wizard_submissions (full_name, gender, major_id, date_of_birth)
+            VALUES (%s, %s, %s, %s)
+        """, (full_name, gender, major_id, date_of_birth))
         submission_id = cursor.lastrowid
 
         # Save subjects
@@ -450,4 +451,3 @@ def submit_wizard():
         if connection.is_connected():
             cursor.close()
             connection.close()
-
