@@ -289,6 +289,7 @@ def user_input_summary():
         full_name = data.get("full_name")
         gender = data.get("gender")
         major_id = data.get("major_id")
+        date_of_birth = data.get("date_of_birth")  # ✅ NEW FIELD
         subject_ids = data.get("subjects", [])
         technical_skill_ids = data.get("technical_skills", [])
         non_technical_skill_ids = data.get("non_technical_skills", [])
@@ -365,6 +366,7 @@ def user_input_summary():
         user_info = OrderedDict()
         user_info["full_name"] = full_name
         user_info["gender"] = gender
+        user_info["date_of_birth"] = date_of_birth  # ✅ NEW LINE
         user_info["major"] = major_name
         user_info["subjects"] = subject_names_by_cat
         user_info["technical_skills"] = tech_skills_by_cat
