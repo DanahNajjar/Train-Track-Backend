@@ -515,4 +515,23 @@ def get_position_details(position_id):
         if connection and connection.is_connected():
             cursor.close()
             connection.close()
+@recommendation_routes.route('/debug/set-session', methods=['POST'])
+def set_debug_session():
+    from flask import session
+    try:
+        data = request.get_json()
+        position_ids = data.get("position_ids", [])
+        if not isinstance(position_ids, list):
+            return jsonify({"success": False, "message": "Invalid format. Send a list of position IDs."}), 400
+
+        session["recommended_positions"] = position_ids
+        return jsonify({
+            "success": True,
+            "message": f"Session updated with position IDs: {position_ids}"
+        }), 200
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "message": str(e)}), 500
 
