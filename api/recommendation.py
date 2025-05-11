@@ -433,21 +433,21 @@ from flask import request, jsonify, session  # ✅ FIXED: added session import
 
 @recommendation_routes.route('/position/<int:position_id>', methods=['GET'])
 def get_position_details(position_id):
-    connection = None  # ✅ FIXED: ensure connection is always defined
+    connection = None
     try:
-        # ✅ 1. Check session for recommended position IDs
-        allowed_ids = session.get("recommended_positions", [])
-        if position_id not in allowed_ids:
+        # ✅ Check session – only if session has recommended_positions
+        allowed_ids = session.get("recommended_positions")
+        if allowed_ids is not None and position_id not in allowed_ids:
             return jsonify({
                 "success": False,
                 "message": "Access denied. This position was not recommended."
             }), 403
 
-        # ✅ 2. Connect to DB
+        # ✅ Connect to DB
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # ✅ 3. Get position info
+        # ✅ Get position info
         cursor.execute("""
             SELECT name, description, tasks, tips
             FROM positions
@@ -459,7 +459,7 @@ def get_position_details(position_id):
 
         tasks = position["tasks"].split("\n") if position["tasks"] else []
 
-        # ✅ 5. Subjects
+        # ✅ Subjects
         cursor.execute("""
             SELECT p.name
             FROM position_prerequisites pp
@@ -468,7 +468,7 @@ def get_position_details(position_id):
         """, (position_id,))
         subjects = [row["name"] for row in cursor.fetchall()]
 
-        # ✅ 6. Technical
+        # ✅ Technical Skills
         cursor.execute("""
             SELECT p.name
             FROM position_prerequisites pp
@@ -477,7 +477,7 @@ def get_position_details(position_id):
         """, (position_id,))
         technical_skills = [row["name"] for row in cursor.fetchall()]
 
-        # ✅ 7. Non-Technical
+        # ✅ Non-Technical Skills
         cursor.execute("""
             SELECT p.name
             FROM position_prerequisites pp
@@ -486,7 +486,7 @@ def get_position_details(position_id):
         """, (position_id,))
         non_technical_skills = [row["name"] for row in cursor.fetchall()]
 
-        # ✅ 8. Resources
+        # ✅ Resources
         cursor.execute("""
             SELECT resource_type, title, url
             FROM learning_resources
@@ -515,6 +515,7 @@ def get_position_details(position_id):
         if connection and connection.is_connected():
             cursor.close()
             connection.close()
+
 @recommendation_routes.route('/debug/set-session', methods=['POST'])
 def set_debug_session():
     from flask import session
