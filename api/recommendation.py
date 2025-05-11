@@ -431,17 +431,19 @@ def get_fallback_prerequisites():
             connection.close()
 from flask import request, jsonify, session  # ✅ FIXED: added session import
 
+DEBUG_BYPASS_SESSION = True  # 🔁 Set to False in production to enforce session
+
 @recommendation_routes.route('/position/<int:position_id>', methods=['GET'])
 def get_position_details(position_id):
     connection = None
     try:
-        # ✅ Check session – only if session has recommended_positions
-        allowed_ids = session.get("recommended_positions")
-        if allowed_ids is not None and position_id not in allowed_ids:
-            return jsonify({
-                "success": False,
-                "message": "Access denied. This position was not recommended."
-            }), 403
+        if not DEBUG_BYPASS_SESSION:
+            allowed_ids = session.get("recommended_positions")
+            if allowed_ids is not None and position_id not in allowed_ids:
+                return jsonify({
+                    "success": False,
+                    "message": "Access denied. This position was not recommended."
+                }), 403
 
         # ✅ Connect to DB
         connection = get_db_connection()
@@ -515,6 +517,7 @@ def get_position_details(position_id):
         if connection and connection.is_connected():
             cursor.close()
             connection.close()
+
 
 @recommendation_routes.route('/debug/set-session', methods=['POST'])
 def set_debug_session():
