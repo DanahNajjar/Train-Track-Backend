@@ -44,6 +44,13 @@ def serve_static(filename):
 @app.route('/test')
 def test():
     return "✅ /test route is working!"
+    
+@app.after_request
+def after_request(response):
+    response.headers.add("Access-Control-Allow-Origin", "*")  # or "http://localhost:8000"
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+    return response
 
 # ✅ Run the app
 if __name__ == '__main__':
