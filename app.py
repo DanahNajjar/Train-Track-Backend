@@ -20,8 +20,11 @@ from api.recommendation import recommendation_routes
 app = Flask(__name__, static_folder='static')
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "train_track_secret_key")
 
-# ✅ Enable CORS for local frontend (fixes ALL wizard step API calls)
-CORS(app, origins=["http://127.0.0.1:8000"], supports_credentials=True)
+# ✅ Enable CORS for both 127.0.0.1 and localhost on port 8000
+CORS(app, origins=[
+    "http://127.0.0.1:8000",
+    "http://localhost:8000"
+], supports_credentials=True)
 
 # ✅ Register blueprints
 app.register_blueprint(wizard_routes, url_prefix='/wizard')
