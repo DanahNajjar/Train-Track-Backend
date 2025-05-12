@@ -173,8 +173,15 @@ def get_technical_skills_grouped():
     rows = cursor.fetchall()
     connection.close()
 
+    # ✅ Global skill tracker (to show each skill only once across all categories)
+    seen_skill_ids = set()
     subject_grouped = {}
+
     for row in rows:
+        if row["id"] in seen_skill_ids:
+            continue  # ✅ Skip already added skills
+        seen_skill_ids.add(row["id"])
+
         sub_id = row['subject_category_id']
         sub_name = row['subject_category_name']
         tech_cat = row['tech_category_name']
@@ -191,8 +198,7 @@ def get_technical_skills_grouped():
             tech_group[tech_cat] = []
 
         skill_entry = {"id": row["id"], "name": row["name"]}
-        if skill_entry not in tech_group[tech_cat]:  # ✅ Prevent duplicates
-            tech_group[tech_cat].append(skill_entry)
+        tech_group[tech_cat].append(skill_entry)
 
     final_output = []
     for subject_data in subject_grouped.values():
@@ -210,6 +216,7 @@ def get_technical_skills_grouped():
         })
 
     return create_response(True, final_output)
+
 
     # ✅ Step 4: Get Non-Technical Skills
 @wizard_routes.route('/non-technical-skills', methods=['GET'])
