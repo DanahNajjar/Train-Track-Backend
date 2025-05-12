@@ -173,14 +173,18 @@ def get_technical_skills_grouped():
     rows = cursor.fetchall()
     connection.close()
 
-    # ✅ Smart deduplication: prevent duplicate skills in same subject+tech category combo
+    # ✅ DEBUG: print all rows returned from DB
+    print("🔍 Total skills fetched from DB:", len(rows))
+    for r in rows:
+        print(f"➡️ Skill ID: {r['id']}, Name: {r['name']}, Subject Category: {r['subject_category_name']}, Tech Category: {r['tech_category_name']}")
+
     seen_skills = set()
     subject_grouped = {}
 
     for row in rows:
         sub_id = row['subject_category_id']
         sub_name = row['subject_category_name']
-        tech_cat = row['tech_category_name'].strip().lower()  # normalize for consistency
+        tech_cat = row['tech_category_name'].strip().lower()
         skill_key = (row["id"], sub_id, tech_cat)
 
         if skill_key in seen_skills:
@@ -206,7 +210,7 @@ def get_technical_skills_grouped():
         tech_cats_list = []
         for cat_name, skills in subject_data["tech_categories"].items():
             tech_cats_list.append({
-                "tech_category_name": cat_name.title(),  # normalize output display
+                "tech_category_name": cat_name.title(),
                 "skills": skills
             })
 
