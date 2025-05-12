@@ -173,14 +173,14 @@ def get_technical_skills_grouped():
     rows = cursor.fetchall()
     connection.close()
 
-    # ✅ Smart deduplication: prevent duplicate skills in the same subject+tech category combo
+    # ✅ Smart deduplication: prevent duplicate skills in same subject+tech category combo
     seen_skills = set()
     subject_grouped = {}
 
     for row in rows:
         sub_id = row['subject_category_id']
         sub_name = row['subject_category_name']
-        tech_cat = row['tech_category_name']
+        tech_cat = row['tech_category_name'].strip().lower()  # normalize for consistency
         skill_key = (row["id"], sub_id, tech_cat)
 
         if skill_key in seen_skills:
@@ -206,7 +206,7 @@ def get_technical_skills_grouped():
         tech_cats_list = []
         for cat_name, skills in subject_data["tech_categories"].items():
             tech_cats_list.append({
-                "tech_category_name": cat_name,
+                "tech_category_name": cat_name.title(),  # normalize output display
                 "skills": skills
             })
 
@@ -217,33 +217,6 @@ def get_technical_skills_grouped():
         })
 
     return create_response(True, final_output)
-
-
-    # ✅ Step 4: Get Non-Technical Skills
-@wizard_routes.route('/non-technical-skills', methods=['GET'])
-def get_non_technical_skills():
-    try:
-        connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
-
-        cursor.execute("""
-            SELECT id, name
-            FROM prerequisites
-            WHERE type = 'Non-Technical Skill'
-            ORDER BY name
-        """)
-        skills = cursor.fetchall()
-
-        return create_response(True, skills)
-
-    except Exception as e:
-        log_error(f"Error fetching non-technical skills: {e}")
-        return create_response(False, message=str(e), status_code=500)
-    finally:
-        if connection.is_connected():
-            cursor.close()
-            connection.close()
-
 
 # ✅ Step 5: Save Advanced Preferences 
 @wizard_routes.route('/preferences', methods=['GET'])
