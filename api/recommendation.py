@@ -54,7 +54,7 @@ def get_recommendations():
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # ✅ Safely extract inputs as sets
+        # ✅ Extract inputs
         subject_ids = set(data.get("subjects", []))
         tech_skills = set(data.get("technical_skills", []))
         non_tech_skills = set(data.get("non_technical_skills", []))
@@ -70,11 +70,10 @@ def get_recommendations():
             advanced_preferences.get("industries")
         ])
 
-        current_app.logger.info(f"Subjects: {subject_ids}")
-        current_app.logger.info(f"Tech Skills: {tech_skills}")
-        current_app.logger.info(f"Non-Tech Skills: {non_tech_skills}")
+        current_app.logger.info(f"📘 Subjects: {subject_ids}")
+        current_app.logger.info(f"🛠️ Tech Skills: {tech_skills}")
+        current_app.logger.info(f"🧠 Non-Tech Skills: {non_tech_skills}")
 
-        # ✅ Validate
         is_fallback = bool(data.get("is_fallback", False)) or bool(previous_fallback_ids)
         error = validate_user_input(subject_ids, tech_skills, non_tech_skills, is_fallback)
         if error:
@@ -84,7 +83,7 @@ def get_recommendations():
         cursor.execute("SELECT id, type FROM prerequisites")
         types = {int(row['id']): row['type'] for row in cursor.fetchall()}
 
-        # ✅ Load all positions and prerequisites
+        # ✅ Load all positions with prerequisites
         cursor.execute("""
             SELECT pp.position_id, pp.prerequisite_id, pp.weight,
                    p.name AS position_name, p.min_fit_score
@@ -121,6 +120,7 @@ def get_recommendations():
             positions[pid][category].append((preq_id, weight))
 
         results = []
+
         for pid, pos in positions.items():
             total = {
                 "subjects": sum(w for _, w in pos["subjects"]),
@@ -146,6 +146,12 @@ def get_recommendations():
 
             fit_level = get_fit_level(matched_weight, base)
 
+            # ✅ STEP 1: LOG SCORING DETAILS
+            current_app.logger.info(
+                f"🧪 Position: {pos['position_name']} | Matched: {matched_weight} | "
+                f"Total: {total_weight} | Min Fit: {base} | Fit Level: {fit_level}"
+            )
+
             if fit_level == "No Match":
                 no_matches.append({
                     "fit_level": fit_level,
@@ -161,11 +167,6 @@ def get_recommendations():
             if fit_level != "Fallback" and pid in previous_fallback_ids:
                 was_fallback_promoted = True
 
-            current_app.logger.info(
-                f"[{pos['position_name']}] Match Score: {matched_weight} | "
-                f"Min Fit: {base} | Fit Level: {fit_level} | Total Weight: {total_weight}"
-            )
-
             overall_pct = round((matched_weight / total_weight) * 100, 2)
 
             results.append({
@@ -179,12 +180,14 @@ def get_recommendations():
                 "was_promoted_from_fallback": pid in previous_fallback_ids and fit_level != "Fallback"
             })
 
+        # ✅ Sort by best match
         results.sort(key=lambda x: x['match_score_percentage'], reverse=True)
         session["recommended_positions"] = [r["position_id"] for r in results]
 
         fallbacks = [r for r in results if r["fit_level"] == "Fallback"]
         strong_matches = [r for r in results if r["fit_level"] != "Fallback"]
 
+        # ✅ Response structure
         if strong_matches:
             return jsonify({
                 "success": True,
