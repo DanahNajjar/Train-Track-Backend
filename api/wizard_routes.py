@@ -173,7 +173,7 @@ def get_technical_skills_grouped():
     rows = cursor.fetchall()
     connection.close()
 
-    print("🔍 Total rows from DB:", len(rows))
+    print("🔍 Total rows:", len(rows))
     subject_grouped = {}
     seen_keys = set()
 
@@ -182,17 +182,17 @@ def get_technical_skills_grouped():
         skill_name = row["name"]
         subject_id = row["subject_category_id"]
         subject_name = row["subject_category_name"]
-        tech_category_name = row["tech_category_name"].strip()
+        tech_cat_raw = row["tech_category_name"].strip()
+        tech_cat_key = tech_cat_raw.lower()
 
-        # DEBUG: Show if Git appears
+        # ✅ LOG GIT explicitly
         if skill_id == 37:
             print("🎯 FOUND GIT:", row)
 
-        # Unique key to prevent exact duplicates
-        key = (skill_id, subject_id, tech_category_name.lower())
-        if key in seen_keys:
+        dedup_key = (skill_id, subject_id, tech_cat_key)
+        if dedup_key in seen_keys:
             continue
-        seen_keys.add(key)
+        seen_keys.add(dedup_key)
 
         if subject_id not in subject_grouped:
             subject_grouped[subject_id] = {
@@ -201,34 +201,31 @@ def get_technical_skills_grouped():
                 "tech_categories": {}
             }
 
-        if tech_category_name not in subject_grouped[subject_id]["tech_categories"]:
-            subject_grouped[subject_id]["tech_categories"][tech_category_name] = []
+        if tech_cat_raw not in subject_grouped[subject_id]["tech_categories"]:
+            subject_grouped[subject_id]["tech_categories"][tech_cat_raw] = []
 
-        subject_grouped[subject_id]["tech_categories"][tech_category_name].append({
+        subject_grouped[subject_id]["tech_categories"][tech_cat_raw].append({
             "id": skill_id,
             "name": skill_name
         })
 
-    # Build final output
     final_output = []
-    for subject in subject_grouped.values():
-        formatted_categories = []
-        for tech_name, skills in subject["tech_categories"].items():
-            formatted_categories.append({
-                "tech_category_name": tech_name,
+    for subject_data in subject_grouped.values():
+        tech_cats_list = []
+        for cat_name, skills in subject_data["tech_categories"].items():
+            tech_cats_list.append({
+                "tech_category_name": cat_name,
                 "skills": skills
             })
 
         final_output.append({
-            "Subject_category_id": subject["Subject_category_id"],
-            "Subject_category_name": subject["Subject_category_name"],
-            "tech_categories": formatted_categories
+            "Subject_category_id": subject_data["Subject_category_id"],
+            "Subject_category_name": subject_data["Subject_category_name"],
+            "tech_categories": tech_cats_list
         })
 
     return create_response(True, final_output)
 
-
-    return create_response(True, final_output)
     # ✅ Step 4: Get Non-Technical Skills
 @wizard_routes.route('/non-technical-skills', methods=['GET'])
 def get_non_technical_skills():
