@@ -173,26 +173,25 @@ def get_technical_skills_grouped():
     rows = cursor.fetchall()
     connection.close()
 
-    print("🔍 Total rows:", len(rows))
+    # ✅ DEBUG: Confirm Git is included
+    for row in rows:
+        if row["id"] == 37:
+            print("🎯 FOUND GIT:", row)
+
     subject_grouped = {}
-    seen_keys = set()
+    seen = set()  # (skill_id, subject_id, tech_category)
 
     for row in rows:
         skill_id = row["id"]
         skill_name = row["name"]
         subject_id = row["subject_category_id"]
         subject_name = row["subject_category_name"]
-        tech_cat_raw = row["tech_category_name"].strip()
-        tech_cat_key = tech_cat_raw.lower()
+        tech_cat = row["tech_category_name"].strip()
 
-        # ✅ LOG GIT explicitly
-        if skill_id == 37:
-            print("🎯 FOUND GIT:", row)
-
-        dedup_key = (skill_id, subject_id, tech_cat_key)
-        if dedup_key in seen_keys:
+        dedup_key = (skill_id, subject_id, tech_cat.lower())
+        if dedup_key in seen:
             continue
-        seen_keys.add(dedup_key)
+        seen.add(dedup_key)
 
         if subject_id not in subject_grouped:
             subject_grouped[subject_id] = {
@@ -201,27 +200,28 @@ def get_technical_skills_grouped():
                 "tech_categories": {}
             }
 
-        if tech_cat_raw not in subject_grouped[subject_id]["tech_categories"]:
-            subject_grouped[subject_id]["tech_categories"][tech_cat_raw] = []
+        tech_group = subject_grouped[subject_id]["tech_categories"]
+        if tech_cat not in tech_group:
+            tech_group[tech_cat] = []
 
-        subject_grouped[subject_id]["tech_categories"][tech_cat_raw].append({
+        tech_group[tech_cat].append({
             "id": skill_id,
             "name": skill_name
         })
 
     final_output = []
-    for subject_data in subject_grouped.values():
-        tech_cats_list = []
-        for cat_name, skills in subject_data["tech_categories"].items():
-            tech_cats_list.append({
+    for subject in subject_grouped.values():
+        formatted = []
+        for cat_name, skills in subject["tech_categories"].items():
+            formatted.append({
                 "tech_category_name": cat_name,
                 "skills": skills
             })
 
         final_output.append({
-            "Subject_category_id": subject_data["Subject_category_id"],
-            "Subject_category_name": subject_data["Subject_category_name"],
-            "tech_categories": tech_cats_list
+            "Subject_category_id": subject["Subject_category_id"],
+            "Subject_category_name": subject["Subject_category_name"],
+            "tech_categories": formatted
         })
 
     return create_response(True, final_output)
