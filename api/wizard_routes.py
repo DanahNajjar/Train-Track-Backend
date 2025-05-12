@@ -173,48 +173,60 @@ def get_technical_skills_grouped():
     rows = cursor.fetchall()
     connection.close()
 
-    # ✅ Smart deduplication: prevent duplicate skills in same subject+tech category combo
-    seen_skills = set()
+    print("🔍 Total rows from DB:", len(rows))
     subject_grouped = {}
+    seen_keys = set()
 
     for row in rows:
-        sub_id = row['subject_category_id']
-        sub_name = row['subject_category_name']
-        tech_cat = row['tech_category_name'].strip().lower()  # normalize for consistency
-        skill_key = (row["id"], sub_id, tech_cat)
+        skill_id = row["id"]
+        skill_name = row["name"]
+        subject_id = row["subject_category_id"]
+        subject_name = row["subject_category_name"]
+        tech_category_name = row["tech_category_name"].strip()
 
-        if skill_key in seen_skills:
+        # DEBUG: Show if Git appears
+        if skill_id == 37:
+            print("🎯 FOUND GIT:", row)
+
+        # Unique key to prevent exact duplicates
+        key = (skill_id, subject_id, tech_category_name.lower())
+        if key in seen_keys:
             continue
-        seen_skills.add(skill_key)
+        seen_keys.add(key)
 
-        if sub_id not in subject_grouped:
-            subject_grouped[sub_id] = {
-                "Subject_category_id": sub_id,
-                "Subject_category_name": sub_name,
+        if subject_id not in subject_grouped:
+            subject_grouped[subject_id] = {
+                "Subject_category_id": subject_id,
+                "Subject_category_name": subject_name,
                 "tech_categories": {}
             }
 
-        tech_group = subject_grouped[sub_id]["tech_categories"]
-        if tech_cat not in tech_group:
-            tech_group[tech_cat] = []
+        if tech_category_name not in subject_grouped[subject_id]["tech_categories"]:
+            subject_grouped[subject_id]["tech_categories"][tech_category_name] = []
 
-        skill_entry = {"id": row["id"], "name": row["name"]}
-        tech_group[tech_cat].append(skill_entry)
+        subject_grouped[subject_id]["tech_categories"][tech_category_name].append({
+            "id": skill_id,
+            "name": skill_name
+        })
 
+    # Build final output
     final_output = []
-    for subject_data in subject_grouped.values():
-        tech_cats_list = []
-        for cat_name, skills in subject_data["tech_categories"].items():
-            tech_cats_list.append({
-                "tech_category_name": cat_name.title(),  # normalize output display
+    for subject in subject_grouped.values():
+        formatted_categories = []
+        for tech_name, skills in subject["tech_categories"].items():
+            formatted_categories.append({
+                "tech_category_name": tech_name,
                 "skills": skills
             })
 
         final_output.append({
-            "Subject_category_id": subject_data["Subject_category_id"],
-            "Subject_category_name": subject_data["Subject_category_name"],
-            "tech_categories": tech_cats_list
+            "Subject_category_id": subject["Subject_category_id"],
+            "Subject_category_name": subject["Subject_category_name"],
+            "tech_categories": formatted_categories
         })
+
+    return create_response(True, final_output)
+
 
     return create_response(True, final_output)
     # ✅ Step 4: Get Non-Technical Skills
