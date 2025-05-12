@@ -190,10 +190,9 @@ def get_technical_skills_grouped():
         if tech_cat not in tech_group:
             tech_group[tech_cat] = []
 
-        tech_group[tech_cat].append({
-            "id": row["id"],
-            "name": row["name"]
-        })
+        skill_entry = {"id": row["id"], "name": row["name"]}
+        if skill_entry not in tech_group[tech_cat]:  # ✅ Prevent duplicates
+            tech_group[tech_cat].append(skill_entry)
 
     final_output = []
     for subject_data in subject_grouped.values():
@@ -211,6 +210,7 @@ def get_technical_skills_grouped():
         })
 
     return create_response(True, final_output)
+
     # ✅ Step 4: Get Non-Technical Skills
 @wizard_routes.route('/non-technical-skills', methods=['GET'])
 def get_non_technical_skills():
