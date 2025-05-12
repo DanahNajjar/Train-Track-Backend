@@ -173,18 +173,19 @@ def get_technical_skills_grouped():
     rows = cursor.fetchall()
     connection.close()
 
-    # ✅ Global skill tracker (to show each skill only once across all categories)
-    seen_skill_ids = set()
+    # ✅ Smart deduplication: prevent duplicate skills in the same subject+tech category combo
+    seen_skills = set()
     subject_grouped = {}
 
     for row in rows:
-        if row["id"] in seen_skill_ids:
-            continue  # ✅ Skip already added skills
-        seen_skill_ids.add(row["id"])
-
         sub_id = row['subject_category_id']
         sub_name = row['subject_category_name']
         tech_cat = row['tech_category_name']
+        skill_key = (row["id"], sub_id, tech_cat)
+
+        if skill_key in seen_skills:
+            continue
+        seen_skills.add(skill_key)
 
         if sub_id not in subject_grouped:
             subject_grouped[sub_id] = {
