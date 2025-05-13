@@ -443,14 +443,23 @@ def submit_wizard():
 
         # ✅ Save preferences ONLY if filled
         if advanced_preferences:
-            training_mode = advanced_preferences.get('training_mode')
-            company_size = advanced_preferences.get('company_size')
-            company_culture = ','.join(advanced_preferences.get('company_culture', [])) if advanced_preferences.get('company_culture') else None
-            preferred_industry = ','.join(advanced_preferences.get('preferred_industry', [])) if advanced_preferences.get('preferred_industry') else None
+            training_mode = advanced_preferences.get('training_modes', [None])[0]
+            company_size = advanced_preferences.get('company_sizes', [None])[0]
+
+            company_culture = (
+                ','.join(map(str, advanced_preferences.get('cultures', [])))
+                if advanced_preferences.get('cultures') else None
+            )
+
+            preferred_industry = (
+                ','.join(map(str, advanced_preferences.get('industries', [])))
+                if advanced_preferences.get('industries') else None
+            )
 
             cursor.execute("""
-                INSERT INTO wizard_submission_advanced_preferences (submission_id, training_mode, company_size, company_culture, preferred_industry)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO wizard_submission_advanced_preferences (
+                    submission_id, training_mode, company_size, company_culture, preferred_industry
+                ) VALUES (%s, %s, %s, %s, %s)
             """, (submission_id, training_mode, company_size, company_culture, preferred_industry))
 
         connection.commit()
@@ -463,3 +472,4 @@ def submit_wizard():
         if connection.is_connected():
             cursor.close()
             connection.close()
+
