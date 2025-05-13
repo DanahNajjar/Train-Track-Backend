@@ -22,4 +22,4 @@ Live on Render – auto-deploys from main
 
 ## 👩‍💻 Developer
 
-- Danah Najjar
+- Dana Najjar
