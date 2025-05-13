@@ -174,16 +174,18 @@ def get_technical_skills_grouped():
     connection.close()
 
     subject_grouped = {}
+    globally_seen_skill_ids = set()  # ✅ GLOBAL deduplication
 
     for row in rows:
         skill_id = row["id"]
+        if skill_id in globally_seen_skill_ids:
+            continue  # ✅ Skip skill if already added globally
+        globally_seen_skill_ids.add(skill_id)
+
         skill_name = row["name"]
         subject_id = row["subject_category_id"]
         subject_name = row["subject_category_name"]
-        tech_cat = row["tech_category_name"].strip().title()  # 🟣 Normalize capitalization
-
-        # 🧠 Use tuple key to avoid duplicate Git in same group
-        key = (skill_id, subject_id, tech_cat)
+        tech_cat = row["tech_category_name"].strip().title()
 
         if subject_id not in subject_grouped:
             subject_grouped[subject_id] = {
@@ -196,14 +198,11 @@ def get_technical_skills_grouped():
         if tech_cat not in tech_group:
             tech_group[tech_cat] = []
 
-        # ✅ Prevent duplicates inside the same subject+tech group
-        if not any(skill["id"] == skill_id for skill in tech_group[tech_cat]):
-            tech_group[tech_cat].append({
-                "id": skill_id,
-                "name": skill_name
-            })
+        tech_group[tech_cat].append({
+            "id": skill_id,
+            "name": skill_name
+        })
 
-    # ✅ Final format
     final_output = []
     for subject in subject_grouped.values():
         formatted = []
