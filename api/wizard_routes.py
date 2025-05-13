@@ -472,3 +472,4 @@ def submit_wizard():
         if connection.is_connected():
             cursor.close()
             connection.close()
+
