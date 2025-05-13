@@ -179,7 +179,6 @@ def get_technical_skills_grouped():
             print("🎯 FOUND GIT:", row)
 
     subject_grouped = {}
-    seen = set()  # (skill_id, subject_id, tech_category)
 
     for row in rows:
         skill_id = row["id"]
@@ -187,11 +186,6 @@ def get_technical_skills_grouped():
         subject_id = row["subject_category_id"]
         subject_name = row["subject_category_name"]
         tech_cat = row["tech_category_name"].strip()
-
-        dedup_key = (skill_id, subject_id, tech_cat.lower())
-        if dedup_key in seen:
-            continue
-        seen.add(dedup_key)
 
         if subject_id not in subject_grouped:
             subject_grouped[subject_id] = {
@@ -204,10 +198,12 @@ def get_technical_skills_grouped():
         if tech_cat not in tech_group:
             tech_group[tech_cat] = []
 
-        tech_group[tech_cat].append({
-            "id": skill_id,
-            "name": skill_name
-        })
+        # ✅ Deduplicate ONLY inside each subject + tech category group
+        if not any(skill["id"] == skill_id for skill in tech_group[tech_cat]):
+            tech_group[tech_cat].append({
+                "id": skill_id,
+                "name": skill_name
+            })
 
     final_output = []
     for subject in subject_grouped.values():
@@ -225,6 +221,7 @@ def get_technical_skills_grouped():
         })
 
     return create_response(True, final_output)
+
 
     # ✅ Step 4: Get Non-Technical Skills
 @wizard_routes.route('/non-technical-skills', methods=['GET'])
