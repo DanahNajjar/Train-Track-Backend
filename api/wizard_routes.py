@@ -180,7 +180,10 @@ def get_technical_skills_grouped():
         skill_name = row["name"]
         subject_id = row["subject_category_id"]
         subject_name = row["subject_category_name"]
-        tech_cat = row["tech_category_name"].strip()
+        tech_cat = row["tech_category_name"].strip().title()  # 🟣 Normalize capitalization
+
+        # 🧠 Use tuple key to avoid duplicate Git in same group
+        key = (skill_id, subject_id, tech_cat)
 
         if subject_id not in subject_grouped:
             subject_grouped[subject_id] = {
@@ -193,27 +196,27 @@ def get_technical_skills_grouped():
         if tech_cat not in tech_group:
             tech_group[tech_cat] = []
 
-        # ✅ Deduplicate inside this subject+tech category only
+        # ✅ Prevent duplicates inside the same subject+tech group
         if not any(skill["id"] == skill_id for skill in tech_group[tech_cat]):
             tech_group[tech_cat].append({
                 "id": skill_id,
                 "name": skill_name
             })
 
-    # ✅ Format final output
+    # ✅ Final format
     final_output = []
     for subject in subject_grouped.values():
-        tech_cats = []
-        for tech_cat_name, skills in subject["tech_categories"].items():
-            tech_cats.append({
-                "tech_category_name": tech_cat_name,
+        formatted = []
+        for cat_name, skills in subject["tech_categories"].items():
+            formatted.append({
+                "tech_category_name": cat_name,
                 "skills": skills
             })
 
         final_output.append({
             "Subject_category_id": subject["Subject_category_id"],
             "Subject_category_name": subject["Subject_category_name"],
-            "tech_categories": tech_cats
+            "tech_categories": formatted
         })
 
     return create_response(True, final_output)
