@@ -173,11 +173,6 @@ def get_technical_skills_grouped():
     rows = cursor.fetchall()
     connection.close()
 
-    # ✅ DEBUG: Confirm Git is included
-    for row in rows:
-        if row["id"] == 37:
-            print("🎯 FOUND GIT:", row)
-
     subject_grouped = {}
 
     for row in rows:
@@ -198,26 +193,27 @@ def get_technical_skills_grouped():
         if tech_cat not in tech_group:
             tech_group[tech_cat] = []
 
-        # ✅ Deduplicate ONLY inside each subject + tech category group
+        # ✅ Deduplicate inside this subject+tech category only
         if not any(skill["id"] == skill_id for skill in tech_group[tech_cat]):
             tech_group[tech_cat].append({
                 "id": skill_id,
                 "name": skill_name
             })
 
+    # ✅ Format final output
     final_output = []
     for subject in subject_grouped.values():
-        formatted = []
-        for cat_name, skills in subject["tech_categories"].items():
-            formatted.append({
-                "tech_category_name": cat_name,
+        tech_cats = []
+        for tech_cat_name, skills in subject["tech_categories"].items():
+            tech_cats.append({
+                "tech_category_name": tech_cat_name,
                 "skills": skills
             })
 
         final_output.append({
             "Subject_category_id": subject["Subject_category_id"],
             "Subject_category_name": subject["Subject_category_name"],
-            "tech_categories": formatted
+            "tech_categories": tech_cats
         })
 
     return create_response(True, final_output)
