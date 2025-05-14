@@ -287,10 +287,11 @@ def get_companies_for_positions():
                 filters.append("c.industry_id IN ({})".format(','.join(['%s'] * len(ind_ids))))
                 params.extend(ind_ids)
 
-        # ✅ Query to fetch clean company data
+        # ✅ Query to fetch company info with position_id included!
         query = f"""
             SELECT 
-                DISTINCT c.id AS company_id,
+                DISTINCT cp.position_id,
+                c.id AS company_id,
                 c.company_name,
                 cs.description AS company_size,
                 i.name AS industry,
@@ -324,6 +325,7 @@ def get_companies_for_positions():
     finally:
         if 'connection' in locals() and connection.is_connected():
             connection.close()
+            
 @recommendation_routes.route('/user-input-summary', methods=['POST'])
 def user_input_summary():
     try:
