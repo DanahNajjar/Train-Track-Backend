@@ -36,15 +36,13 @@ def get_fit_level(score, base):
 @recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
     from flask import session
-    import json  # ✅ make sure it's at the top
+    import json
 
     current_app.logger.info("🔥 /recommendations route HIT")
     current_app.logger.info("🚀 Starting recommendation processing...")
 
-    # ✅ Get data
     data = request.get_json()
 
-    # ✅ Fix: if "subjects" is passed as a string (e.g. "170,171,176"), convert it to a list
     if isinstance(data.get("subjects"), str):
         try:
             data["subjects"] = json.loads(data["subjects"])
@@ -55,7 +53,6 @@ def get_recommendations():
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # ✅ Extract inputs
         subject_ids = set(data.get("subjects", []))
         tech_skills = set(data.get("technical_skills", []))
         non_tech_skills = set(data.get("non_technical_skills", []))
@@ -63,13 +60,19 @@ def get_recommendations():
         was_fallback_promoted = False
         no_matches = []
 
-        # ✅ Advanced preferences
         advanced_preferences = data.get("advanced_preferences", {})
         has_preferences = any([
             advanced_preferences.get("training_modes"),
             advanced_preferences.get("company_sizes"),
             advanced_preferences.get("industries")
         ])
+
+        company_filter_ids = {
+            "training_mode": advanced_preferences.get("training_mode"),
+            "company_size": advanced_preferences.get("company_size"),
+            "preferred_industry": advanced_preferences.get("preferred_industry", []),
+            "company_culture": advanced_preferences.get("company_culture", [])
+        }
 
         current_app.logger.info(f"📘 Subjects: {subject_ids}")
         current_app.logger.info(f"🛠️ Tech Skills: {tech_skills}")
@@ -80,11 +83,9 @@ def get_recommendations():
         if error:
             return jsonify({"success": False, "message": error}), 400
 
-        # ✅ Load prerequisite types
         cursor.execute("SELECT id, type FROM prerequisites")
         types = {int(row['id']): row['type'] for row in cursor.fetchall()}
 
-        # ✅ Load all positions with prerequisites
         cursor.execute("""
             SELECT pp.position_id, pp.prerequisite_id, pp.weight,
                    p.name AS position_name, p.min_fit_score
@@ -147,7 +148,6 @@ def get_recommendations():
 
             fit_level = get_fit_level(matched_weight, base)
 
-            # ✅ STEP 1: LOG SCORING DETAILS
             current_app.logger.info(
                 f"🧪 Position: {pos['position_name']} | Matched: {matched_weight} | "
                 f"Total: {total_weight} | Min Fit: {base} | Fit Level: {fit_level}"
@@ -181,14 +181,12 @@ def get_recommendations():
                 "was_promoted_from_fallback": pid in previous_fallback_ids and fit_level != "Fallback"
             })
 
-        # ✅ Sort by best match
         results.sort(key=lambda x: x['match_score_percentage'], reverse=True)
         session["recommended_positions"] = [r["position_id"] for r in results]
 
         fallbacks = [r for r in results if r["fit_level"] == "Fallback"]
         strong_matches = [r for r in results if r["fit_level"] != "Fallback"]
 
-        # ✅ Response structure
         if strong_matches:
             return jsonify({
                 "success": True,
@@ -196,7 +194,8 @@ def get_recommendations():
                 "fallback_triggered": False,
                 "was_fallback_promoted": was_fallback_promoted,
                 "recommended_positions": strong_matches,
-                "should_fetch_companies": has_preferences
+                "should_fetch_companies": has_preferences,
+                "company_filter_ids": company_filter_ids
             }), 200
 
         elif fallbacks:
@@ -206,7 +205,8 @@ def get_recommendations():
                 "fallback_triggered": True,
                 "was_fallback_promoted": False,
                 "recommended_positions": fallbacks,
-                "should_fetch_companies": has_preferences
+                "should_fetch_companies": has_preferences,
+                "company_filter_ids": company_filter_ids
             }), 200
 
         elif no_matches:
@@ -217,7 +217,8 @@ def get_recommendations():
                 "was_fallback_promoted": False,
                 "recommended_positions": [],
                 "no_match_positions": no_matches,
-                "should_fetch_companies": has_preferences
+                "should_fetch_companies": has_preferences,
+                "company_filter_ids": company_filter_ids
             }), 200
 
         return jsonify({
@@ -226,7 +227,8 @@ def get_recommendations():
             "fallback_triggered": False,
             "was_fallback_promoted": False,
             "recommended_positions": [],
-            "should_fetch_companies": has_preferences
+            "should_fetch_companies": has_preferences,
+            "company_filter_ids": company_filter_ids
         }), 200
 
     except Exception as e:
