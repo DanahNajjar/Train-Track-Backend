@@ -305,8 +305,8 @@ def submit_wizard():
         # ✅ Optional fields
         selected_subject_ids = data.get('selected_subject_ids', [])
         selected_technical_skill_ids = data.get('selected_technical_skill_ids', [])
-        selected_non_technical_skill_ids = data.get('selected_non_technical_skill_ids', [])
-        advanced_preferences = data.get('advanced_preferences')  # can be None or {}
+        selected_non_technical_skill_ids = data.get('selected_non_technical_skills', [])
+        advanced_preferences = data.get('advanced_preferences') or {}
 
         if not all([full_name, gender, major_id, date_of_birth]):
             return jsonify({"success": False, "message": "Missing basic user info."}), 400
@@ -345,15 +345,15 @@ def submit_wizard():
 
         # ✅ Save preferences if present
         if advanced_preferences:
-            training_mode = advanced_preferences.get('training_modes', [None])[0]
-            company_size = advanced_preferences.get('company_sizes', [None])[0]
+            training_mode = advanced_preferences.get('training_mode')  # ✅ Match frontend key
+            company_size = advanced_preferences.get('company_size')   # ✅ Match frontend key
             company_culture = (
-                ','.join(map(str, advanced_preferences.get('cultures', [])))
-                if advanced_preferences.get('cultures') else None
+                ','.join(map(str, advanced_preferences.get('company_culture', [])))
+                if advanced_preferences.get('company_culture') else None
             )
             preferred_industry = (
-                ','.join(map(str, advanced_preferences.get('industries', [])))
-                if advanced_preferences.get('industries') else None
+                ','.join(map(str, advanced_preferences.get('preferred_industry', [])))
+                if advanced_preferences.get('preferred_industry') else None
             )
 
             cursor.execute("""
