@@ -65,7 +65,9 @@ def get_recommendations():
         has_preferences = any([
             advanced_preferences.get("training_modes"),
             advanced_preferences.get("company_sizes"),
-            advanced_preferences.get("industries")
+            advanced_preferences.get("industries"),
+            advanced_preferences.get("company_culture")
+
         ])
 
         # ✅ FIXED: Matching frontend keys exactly
@@ -242,8 +244,7 @@ def get_recommendations():
     finally:
         if 'connection' in locals() and connection.is_connected():
             connection.close()
-
-
+            
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
     try:
@@ -260,9 +261,10 @@ def get_companies_for_positions():
         training_modes_raw = request.args.get('training_modes', '').strip()
         company_sizes_raw = request.args.get('company_sizes', '').strip()
         industries_raw = request.args.get('industries', '').strip()
+        company_cultures_raw = request.args.get('company_culture', '').strip()
 
         # ✅ If all are empty → user skipped preferences
-        if not training_modes_raw and not company_sizes_raw and not industries_raw:
+        if not training_modes_raw and not company_sizes_raw and not industries_raw and not company_cultures_raw:
             return jsonify({
                 "success": True,
                 "companies": []
@@ -271,6 +273,7 @@ def get_companies_for_positions():
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
+        # ✅ Required position filter
         filters = ["cp.position_id IN ({})".format(','.join(['%s'] * len(position_ids)))]
         params = list(position_ids)
 
@@ -291,6 +294,19 @@ def get_companies_for_positions():
             if ind_ids:
                 filters.append("c.industry_id IN ({})".format(','.join(['%s'] * len(ind_ids))))
                 params.extend(ind_ids)
+
+        if company_cultures_raw:
+            culture_ids = [int(x.strip()) for x in company_cultures_raw.split(',') if x.strip().isdigit()]
+            if culture_ids:
+                filters.append("""
+                    c.id IN (
+                        SELECT company_id
+                        FROM company_culture
+                        WHERE keyword_id IN ({})
+                        GROUP BY company_id
+                    )
+                """.format(','.join(['%s'] * len(culture_ids))))
+                params.extend(culture_ids)
 
         # ✅ Query to fetch company info with position_id included!
         query = f"""
