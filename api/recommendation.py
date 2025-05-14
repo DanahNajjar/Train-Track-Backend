@@ -1,5 +1,6 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, session
 from api.db import get_db_connection
+DEBUG_BYPASS_SESSION = True  # 🔁 Set to False in production to enforce session
 
 recommendation_routes = Blueprint('recommendation', __name__)
 
@@ -323,6 +324,105 @@ def get_companies_for_positions():
     finally:
         if 'connection' in locals() and connection.is_connected():
             connection.close()
+@recommendation_routes.route('/user-input-summary', methods=['POST'])
+def user_input_summary():
+    try:
+        data = request.get_json()
+        full_name = data.get("full_name")
+        gender = data.get("gender")
+        major_id = data.get("major_id")
+        date_of_birth = data.get("date_of_birth")  # ✅ NEW FIELD
+        subject_ids = data.get("subjects", [])
+        technical_skill_ids = data.get("technical_skills", [])
+        non_technical_skill_ids = data.get("non_technical_skills", [])
+        preferences = data.get("preferences", {})
+
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        # ✅ Get Major Name
+        cursor.execute("SELECT name FROM prerequisites WHERE id = %s AND type = 'Major'", (major_id,))
+        major_row = cursor.fetchone()
+        major_name = major_row['name'] if major_row else None
+
+        # ✅ Get Selected Subjects
+        subject_names_by_cat = []
+        if subject_ids:
+            format_strings, category_ids = build_in_clause(subject_ids)
+            query = f"""
+                SELECT p.id, p.name, c.id AS category_id, c.name AS category_name
+                FROM prerequisites p
+                JOIN categories c ON p.category_id = c.id
+                WHERE p.id IN ({format_strings}) AND p.type = 'Subject'
+            """
+            cursor.execute(query, tuple(subject_ids))
+            rows = cursor.fetchall()
+            grouped_subjects = {}
+            for row in rows:
+                cat_id = row['category_id']
+                if cat_id not in grouped_subjects:
+                    grouped_subjects[cat_id] = {
+                        "category_id": cat_id,
+                        "category_name": row['category_name'],
+                        "subjects": []
+                    }
+                grouped_subjects[cat_id]["subjects"].append({"id": row["id"], "name": row["name"]})
+            subject_names_by_cat = list(grouped_subjects.values())
+
+        # ✅ Get Technical Skills
+        tech_skills_by_cat = []
+        if technical_skill_ids:
+            format_strings, category_ids = build_in_clause(technical_skill_ids)
+            query = f"""
+                SELECT p.id, p.name, c.id AS category_id, c.name AS category_name
+                FROM prerequisites p
+                JOIN categories c ON p.category_id = c.id
+                WHERE p.id IN ({format_strings}) AND p.type = 'Technical Skill'
+            """
+            cursor.execute(query, tuple(technical_skill_ids))
+            rows = cursor.fetchall()
+            grouped_skills = {}
+            for row in rows:
+                cat_id = row['category_id']
+                if cat_id not in grouped_skills:
+                    grouped_skills[cat_id] = {
+                        "category_id": cat_id,
+                        "category_name": row["category_name"],
+                        "skills": []
+                    }
+                grouped_skills[cat_id]["skills"].append({"id": row["id"], "name": row["name"]})
+            tech_skills_by_cat = list(grouped_skills.values())
+
+        # ✅ Get Non-Technical Skills
+        non_tech_names = []
+        if non_technical_skill_ids:
+            format_strings, category_ids = build_in_clause(non_technical_skill_ids)
+            query = f"""
+                SELECT name FROM prerequisites
+                WHERE id IN ({format_strings}) AND type = 'Non-Technical Skill'
+            """
+            cursor.execute(query, tuple(non_technical_skill_ids))
+            non_tech_names = [row['name'] for row in cursor.fetchall()]
+
+        # ✅ Final Output: Ordered by Wizard Steps
+        user_info = OrderedDict()
+        user_info["full_name"] = full_name
+        user_info["gender"] = gender
+        user_info["date_of_birth"] = date_of_birth  # ✅ NEW LINE
+        user_info["major"] = major_name
+        user_info["subjects"] = subject_names_by_cat
+        user_info["technical_skills"] = tech_skills_by_cat
+        user_info["non_technical_skills"] = non_tech_names
+        user_info["preferences"] = preferences
+
+        return create_response(True, user_info)
+
+    except Exception as e:
+        log_error(f"Error in user input summary: {e}")
+        return create_response(False, message=str(e), status_code=500)
+    finally:
+        if connection.is_connected():
+            connection.close()
 
 @recommendation_routes.route('/recommendations/fallback-prerequisites', methods=['POST'])
 def get_fallback_prerequisites():
@@ -432,9 +532,6 @@ def get_fallback_prerequisites():
     finally:
         if connection.is_connected():
             connection.close()
-from flask import request, jsonify, session  # ✅ FIXED: added session import
-
-DEBUG_BYPASS_SESSION = True  # 🔁 Set to False in production to enforce session
 
 @recommendation_routes.route('/position/<int:position_id>', methods=['GET'])
 def get_position_details(position_id):
