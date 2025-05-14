@@ -60,6 +60,7 @@ def get_recommendations():
         was_fallback_promoted = False
         no_matches = []
 
+        # ✅ Extract advanced_preferences using correct keys
         advanced_preferences = data.get("advanced_preferences", {})
         has_preferences = any([
             advanced_preferences.get("training_modes"),
@@ -67,10 +68,11 @@ def get_recommendations():
             advanced_preferences.get("industries")
         ])
 
+        # ✅ FIXED: Matching frontend keys exactly
         company_filter_ids = {
-            "training_mode": advanced_preferences.get("training_mode"),
-            "company_size": advanced_preferences.get("company_size"),
-            "preferred_industry": advanced_preferences.get("preferred_industry", []),
+            "training_mode": advanced_preferences.get("training_modes"),
+            "company_size": advanced_preferences.get("company_sizes"),
+            "preferred_industry": advanced_preferences.get("industries", []),
             "company_culture": advanced_preferences.get("company_culture", [])
         }
 
@@ -240,6 +242,7 @@ def get_recommendations():
     finally:
         if 'connection' in locals() and connection.is_connected():
             connection.close()
+
 
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
