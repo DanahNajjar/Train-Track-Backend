@@ -15,7 +15,6 @@ logging.info(f"🔧 Loaded environment from: {env_file}")
 # ✅ Create Flask app
 app = Flask(__name__, static_folder='static')
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "train_track_secret_key")
-
 # ✅ Enable CORS — including companies-for-positions
 CORS(app, resources={
     r"/wizard/*": {"origins": ["http://localhost:8000", "http://127.0.0.1:8000"]},
