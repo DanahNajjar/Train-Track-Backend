@@ -16,11 +16,36 @@ logging.info(f"🔧 Loaded environment from: {env_file}")
 app = Flask(__name__, static_folder='static')
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "train_track_secret_key")
 
-# ✅ Enable CORS — clean and targeted
+# ✅ Enable CORS — for local + deployed frontend
 CORS(app, resources={
-    r"/wizard/*": {"origins": ["http://localhost:8000", "http://127.0.0.1:8000"]},
-    r"/position/*": {"origins": ["http://localhost:8000", "http://127.0.0.1:8000"]},
-    r"/recommendations*": {"origins": ["http://localhost:8000", "http://127.0.0.1:8000"]}
+    r"/wizard/*": {
+        "origins": [
+            "http://localhost:8000",
+            "http://127.0.0.1:8000",
+            "https://train-track-frontend.onrender.com"
+        ]
+    },
+    r"/position/*": {
+        "origins": [
+            "http://localhost:8000",
+            "http://127.0.0.1:8000",
+            "https://train-track-frontend.onrender.com"
+        ]
+    },
+    r"/recommendations*": {
+        "origins": [
+            "http://localhost:8000",
+            "http://127.0.0.1:8000",
+            "https://train-track-frontend.onrender.com"
+        ]
+    },
+    r"/companies-for-positions": {
+        "origins": [
+            "http://localhost:8000",
+            "http://127.0.0.1:8000",
+            "https://train-track-frontend.onrender.com"
+        ]
+    }
 }, supports_credentials=True)
 
 # ✅ Import & register blueprints
@@ -42,8 +67,6 @@ def serve_static(filename):
 @app.route('/test')
 def test():
     return "✅ /test route is working!"
-
-# 🚫 Removed `@app.after_request` — no longer needed with Flask-CORS configured correctly
 
 # ✅ Run server
 if __name__ == '__main__':
