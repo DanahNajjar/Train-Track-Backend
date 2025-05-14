@@ -343,26 +343,25 @@ def submit_wizard():
                 VALUES (%s, %s)
             """, (submission_id, nontech_id))
 
-        # ✅ Save preferences if present
-        if advanced_preferences:
-            training_mode = advanced_preferences.get('training_mode')  # ✅ Match frontend key
-            company_size = advanced_preferences.get('company_size')   # ✅ Match frontend key
-            company_culture = (
-                ','.join(map(str, advanced_preferences.get('company_culture', [])))
-                if advanced_preferences.get('company_culture') else None
-            )
-            preferred_industry = (
-                ','.join(map(str, advanced_preferences.get('preferred_industry', [])))
-                if advanced_preferences.get('preferred_industry') else None
-            )
+        # ✅ Save advanced preferences (now using correct plural keys)
+        training_mode = (advanced_preferences.get('training_modes') or [None])[0]
+        company_size = (advanced_preferences.get('company_sizes') or [None])[0]
+        company_culture = (
+            ','.join(map(str, advanced_preferences.get('company_culture', []))) 
+            if advanced_preferences.get('company_culture') else None
+        )
+        preferred_industry = (
+            ','.join(map(str, advanced_preferences.get('industries', [])))
+            if advanced_preferences.get('industries') else None
+        )
 
-            cursor.execute("""
-                INSERT INTO wizard_submission_advanced_preferences (
-                    submission_id, training_mode, company_size, company_culture, preferred_industry
-                ) VALUES (%s, %s, %s, %s, %s)
-            """, (submission_id, training_mode, company_size, company_culture, preferred_industry))
+        cursor.execute("""
+            INSERT INTO wizard_submission_advanced_preferences (
+                submission_id, training_mode, company_size, company_culture, preferred_industry
+            ) VALUES (%s, %s, %s, %s, %s)
+        """, (submission_id, training_mode, company_size, company_culture, preferred_industry))
 
-        # ✅ Done
+        # ✅ Commit changes
         connection.commit()
         return jsonify({"success": True, "message": "Wizard data submitted!"}), 201
 
@@ -371,6 +370,6 @@ def submit_wizard():
         return jsonify({"success": False, "message": "Internal server error."}), 500
 
     finally:
-        if connection and connection.is_connected():  # ✅ Safe closing
+        if connection and connection.is_connected():
             cursor.close()
             connection.close()
