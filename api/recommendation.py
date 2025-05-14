@@ -67,10 +67,11 @@ def get_recommendations():
             advanced_preferences.get("industries")
         ])
 
+        # ✅ FIXED: Use correct keys from frontend
         company_filter_ids = {
-            "training_mode": advanced_preferences.get("training_mode"),
-            "company_size": advanced_preferences.get("company_size"),
-            "preferred_industry": advanced_preferences.get("preferred_industry", []),
+            "training_mode": advanced_preferences.get("training_modes"),
+            "company_size": advanced_preferences.get("company_sizes"),
+            "preferred_industry": advanced_preferences.get("industries", []),
             "company_culture": advanced_preferences.get("company_culture", [])
         }
 
