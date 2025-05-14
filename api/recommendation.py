@@ -65,7 +65,9 @@ def get_recommendations():
         has_preferences = any([
             advanced_preferences.get("training_modes"),
             advanced_preferences.get("company_sizes"),
-            advanced_preferences.get("industries")
+            advanced_preferences.get("industries"),
+            advanced_preferences.get("company_culture")
+
         ])
 
         # ✅ FIXED: Matching frontend keys exactly
