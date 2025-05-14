@@ -325,7 +325,7 @@ def get_companies_for_positions():
     finally:
         if 'connection' in locals() and connection.is_connected():
             connection.close()
-            
+
 @recommendation_routes.route('/user-input-summary', methods=['POST'])
 def user_input_summary():
     try:
