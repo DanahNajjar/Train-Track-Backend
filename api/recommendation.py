@@ -178,7 +178,7 @@ def get_recommendations():
                 current_app.logger.info("⚠️ Top result is Fallback or No Match — hiding all results.")
 
         fallbacks = [r for r in results if r["fit_level"] == "Fallback"]
-        strong_matches = [r for r in results if r["fit_level"] != "Fallback"]
+        strong_matches = [r for r in results if r["fit_level"] in ["Perfect Match", "Very Strong Match", "Strong Match", "Partial Match"]]
 
         if strong_matches:
             return jsonify({
@@ -233,7 +233,7 @@ def get_recommendations():
     finally:
         if 'connection' in locals() and connection.is_connected():
             connection.close()
-            
+
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
     try:
