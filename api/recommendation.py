@@ -661,4 +661,3 @@ def set_debug_session():
         import traceback
         traceback.print_exc()
         return jsonify({"success": False, "message": str(e)}), 500
-
