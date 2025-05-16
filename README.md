@@ -20,6 +20,3 @@ This is the **Flask-based backend** for the Train-Track Expert System — a smar
 
 Live on Render – auto-deploys from main
 
-## 👩‍💻 Developer
-
-- Dana Najjar
