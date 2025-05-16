@@ -521,7 +521,8 @@ def get_fallback_prerequisites():
             if not base:
                 continue
 
-            fit_level = get_fit_level(matched_weight, base)
+            fit_level = get_fit_level(matched_weight, total_weight)
+
             if fit_level == "Fallback":
                 fallback_positions.append((pid, pos, matched))
 
