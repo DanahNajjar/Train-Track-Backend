@@ -34,10 +34,46 @@ def get_fit_level(score, base):
     else:
         return "Perfect Match"
 
+from flask import Blueprint, request, jsonify, current_app, session
+from api.db import get_db_connection
+import json
+
+DEBUG_BYPASS_SESSION = True
+recommendation_routes = Blueprint('recommendation', __name__)
+
+# ✅ Input validation
+def validate_user_input(subject_ids, tech_skills, non_tech_skills, is_fallback=False):
+    if not is_fallback:
+        if not 3 <= len(subject_ids) <= 7:
+            return "Please select between 3 and 7 subjects."
+        if not 3 <= len(tech_skills) <= 8:
+            return "Please select between 3 and 8 technical skills."
+        if not 3 <= len(non_tech_skills) <= 5:
+            return "Please select between 3 and 5 non-technical skills."
+    else:
+        if len(subject_ids) == 0 and len(tech_skills) == 0 and len(non_tech_skills) == 0:
+            return "Please select at least one skill or subject to improve your result."
+    return None
+
+# ✅ Mentor’s scoring logic
+def get_fit_level(score, base):
+    if score < base * 0.75:
+        return "No Match"
+    elif score < base:
+        return "Fallback"
+    elif score < base * 1.25:
+        return "Partial Match"
+    elif score < base * 1.5:
+        return "Strong Match"
+    elif score < base * 1.75:
+        return "Very Strong Match"
+    else:
+        return "Perfect Match"
+
 @recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
-    current_app.logger.info("🔥 /recommendations route HIT")
-    current_app.logger.info("🚀 Starting recommendation processing...")
+    current_app.logger.info("\ud83d\udd25 /recommendations route HIT")
+    current_app.logger.info("\ud83d\ude80 Starting recommendation processing...")
 
     data = request.get_json()
 
@@ -72,9 +108,9 @@ def get_recommendations():
             "company_culture": advanced_preferences.get("company_culture", [])
         }
 
-        current_app.logger.info(f"📘 Subjects: {subject_ids}")
-        current_app.logger.info(f"🛠️ Tech Skills: {tech_skills}")
-        current_app.logger.info(f"🧠 Non-Tech Skills: {non_tech_skills}")
+        current_app.logger.info(f"\ud83d\udcd8 Subjects: {subject_ids}")
+        current_app.logger.info(f"\ud83d\udee0\ufe0f Tech Skills: {tech_skills}")
+        current_app.logger.info(f"\ud83e\udde0 Non-Tech Skills: {non_tech_skills}")
 
         is_fallback = bool(data.get("is_fallback", False)) or bool(previous_fallback_ids)
         error = validate_user_input(subject_ids, tech_skills, non_tech_skills, is_fallback)
@@ -149,7 +185,7 @@ def get_recommendations():
             fit_level = get_fit_level(matched_weight, base)
 
             current_app.logger.info(
-                f"🧪 Position: {pos['position_name']} | Matched: {matched_weight} | "
+                f"\ud83e\uddf2 Position: {pos['position_name']} | Matched: {matched_weight} | "
                 f"Total: {total_weight} | Min Fit: {base} | Fit Level: {fit_level}"
             )
 
@@ -161,13 +197,15 @@ def get_recommendations():
                 "subject_fit_percentage": round((matched["subjects"] / total["subjects"]) * 100, 2) if total["subjects"] else 0,
                 "technical_skill_fit_percentage": round((matched["technical_skills"] / total["technical_skills"]) * 100, 2) if total["technical_skills"] else 0,
                 "non_technical_skill_fit_percentage": round((matched["non_technical_skills"] / total["non_technical_skills"]) * 100, 2) if total["non_technical_skills"] else 0,
-                "was_promoted_from_fallback": pid in previous_fallback_ids and fit_level != "Fallback"
+                "was_promoted_from_fallback": pid in previous_fallback_ids and fit_level != "Fallback",
+                "matched_weight": matched_weight,
+                "min_fit_score": base,
+                "fit_ratio": round(matched_weight / base * 100, 2)
             })
 
         results.sort(key=lambda x: x['match_score_percentage'], reverse=True)
         session["recommended_positions"] = [r["position_id"] for r in results]
 
-        # ✅ Separate results by fit level
         perfect_matches = [r for r in results if r["fit_level"] == "Perfect Match"]
         strong_matches = [r for r in results if r["fit_level"] in ["Very Strong Match", "Strong Match", "Partial Match"]]
         fallbacks = [r for r in results if r["fit_level"] == "Fallback"]
@@ -230,7 +268,7 @@ def get_recommendations():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        current_app.logger.error(f"❌ Error: {str(e)}")
+        current_app.logger.error(f"\u274c Error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
     finally:
