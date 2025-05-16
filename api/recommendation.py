@@ -1,7 +1,8 @@
 from flask import Blueprint, request, jsonify, current_app, session
 from api.db import get_db_connection
-DEBUG_BYPASS_SESSION = True  # 🔁 Set to False in production to enforce session
+import json
 
+DEBUG_BYPASS_SESSION = True
 recommendation_routes = Blueprint('recommendation', __name__)
 
 # ✅ Input validation
@@ -35,9 +36,6 @@ def get_fit_level(score, base):
 
 @recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
-    from flask import session
-    import json
-
     current_app.logger.info("\ud83d\udd25 /recommendations route HIT")
     current_app.logger.info("\ud83d\ude80 Starting recommendation processing...")
 
@@ -146,6 +144,7 @@ def get_recommendations():
             base = pos["min_fit_score"]
             if not base:
                 continue
+
             fit_level = get_fit_level(matched_weight, base)
 
             current_app.logger.info(
@@ -166,6 +165,17 @@ def get_recommendations():
 
         results.sort(key=lambda x: x['match_score_percentage'], reverse=True)
         session["recommended_positions"] = [r["position_id"] for r in results]
+
+        # ✅ New filtering rule
+        if results:
+            top_fit_level = results[0]["fit_level"]
+
+            if top_fit_level == "Perfect Match":
+                results = [results[0]]
+                current_app.logger.info("🎯 Top result is a Perfect Match — showing only one result.")
+            elif top_fit_level in ["Fallback", "No Match"]:
+                results = []
+                current_app.logger.info("⚠️ Top result is Fallback or No Match — hiding all results.")
 
         fallbacks = [r for r in results if r["fit_level"] == "Fallback"]
         strong_matches = [r for r in results if r["fit_level"] != "Fallback"]
@@ -223,7 +233,7 @@ def get_recommendations():
     finally:
         if 'connection' in locals() and connection.is_connected():
             connection.close()
-
+            
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
     try:
