@@ -22,7 +22,7 @@ def validate_user_input(subject_ids, tech_skills, non_tech_skills, is_fallback=F
 # ✅ Mentor’s scoring logic
 def get_fit_level(score, base):
     if score < base * 0.75:
-        return "Fallback"
+        return "Fallback"              # Lowest
     elif score < base:
         return "No Match"
     elif score < base * 1.25:
@@ -32,7 +32,7 @@ def get_fit_level(score, base):
     elif score < base * 1.75:
         return "Very Strong Match"
     else:
-        return "Perfect Match"
+        return "Perfect Match"         # Highest
 
 from flask import Blueprint, request, jsonify, current_app, session
 from api.db import get_db_connection
