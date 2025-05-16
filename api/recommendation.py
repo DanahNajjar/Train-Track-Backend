@@ -241,7 +241,6 @@ def get_recommendations():
         if 'connection' in locals() and connection.is_connected():
             connection.close()
 
-
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
     try:
