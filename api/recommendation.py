@@ -56,19 +56,19 @@ def validate_user_input(subject_ids, tech_skills, non_tech_skills, is_fallback=F
     return None
 
 # ✅ Mentor’s scoring logic
-def get_fit_level(score, base):
-    if score < base * 0.75:
-        return "No Match"
-    elif score < base:
-        return "Fallback"
-    elif score < base * 1.25:
-        return "Partial Match"
-    elif score < base * 1.5:
-        return "Strong Match"
-    elif score < base * 1.75:
-        return "Very Strong Match"
-    else:
-        return "Perfect Match"
+if score < base * 0.75:
+    return "No Match"       # ✅ Lowest level now
+elif score < base:
+    return "Fallback"       # ✅ Slightly better
+elif score < base * 1.25:
+    return "Partial Match"
+elif score < base * 1.5:
+    return "Strong Match"
+elif score < base * 1.75:
+    return "Very Strong Match"
+else:
+    return "Perfect Match"
+
 
 @recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
