@@ -149,7 +149,8 @@ def get_recommendations():
             if matched_weight < base:
                 continue
 
-            fit_level = get_fit_level(matched_weight, total_weight)
+            fit_level = get_fit_level(matched_weight, base)
+
 
             current_app.logger.info(
                 f"🧪 Position: {pos['position_name']} | Matched: {matched_weight} | "
