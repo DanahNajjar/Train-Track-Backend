@@ -147,6 +147,7 @@ def get_recommendations():
             if not base:
                 continue
 
+            # ✅ Use the original absolute threshold for fallback
             if matched_weight < base:
                 fit_level = "Fallback"
             else:
@@ -240,7 +241,6 @@ def get_recommendations():
     finally:
         if 'connection' in locals() and connection.is_connected():
             connection.close()
-
 
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
