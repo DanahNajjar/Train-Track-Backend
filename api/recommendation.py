@@ -38,8 +38,8 @@ def get_recommendations():
     from flask import session
     import json
 
-    current_app.logger.info("🔥 /recommendations route HIT")
-    current_app.logger.info("🚀 Starting recommendation processing...")
+    current_app.logger.info("\U0001F525 /recommendations route HIT")
+    current_app.logger.info("\U0001F680 Starting recommendation processing...")
 
     data = request.get_json()
 
@@ -75,9 +75,9 @@ def get_recommendations():
             "company_culture": advanced_preferences.get("company_culture", [])
         }
 
-        current_app.logger.info(f"📘 Subjects: {subject_ids}")
-        current_app.logger.info(f"🛠️ Tech Skills: {tech_skills}")
-        current_app.logger.info(f"🧠 Non-Tech Skills: {non_tech_skills}")
+        current_app.logger.info(f"\U0001F4D8 Subjects: {subject_ids}")
+        current_app.logger.info(f"\U0001F6E0️ Tech Skills: {tech_skills}")
+        current_app.logger.info(f"\U0001F9E0 Non-Tech Skills: {non_tech_skills}")
 
         is_fallback = bool(data.get("is_fallback", False)) or bool(previous_fallback_ids)
         error = validate_user_input(subject_ids, tech_skills, non_tech_skills, is_fallback)
@@ -150,32 +150,17 @@ def get_recommendations():
             normalized_score = matched_weight / total_weight
             normalized_base = base / total_weight
 
-            if normalized_score < normalized_base:
-                continue
+            if normalized_score < 0.1:
+                continue  # avoid extremely weak matches
 
             fit_level = get_fit_level(normalized_score, 1.0)
 
             current_app.logger.info(
-                f"🧪 Position: {pos['position_name']} | Matched: {matched_weight} | "
-                f"Total: {total_weight} | Min Fit: {base} | Fit Level: {fit_level}"
+                f"\U0001F9EA Position: {pos['position_name']} | Matched: {matched_weight} | "
+                f"Total: {total_weight} | Base: {base} | Normalized: {round(normalized_score, 2)} | Fit: {fit_level}"
             )
 
-            if fit_level == "No Match":
-                no_matches.append({
-                    "fit_level": fit_level,
-                    "match_score_percentage": round(normalized_score * 100, 2),
-                    "position_id": pid,
-                    "position_name": pos["position_name"],
-                    "subject_fit_percentage": round((matched["subjects"] / total["subjects"]) * 100, 2) if total["subjects"] else 0,
-                    "technical_skill_fit_percentage": round((matched["technical_skills"] / total["technical_skills"]) * 100, 2) if total["technical_skills"] else 0,
-                    "non_technical_skill_fit_percentage": round((matched["non_technical_skills"] / total["non_technical_skills"]) * 100, 2) if total["non_technical_skills"] else 0
-                })
-                continue
-
-            if fit_level != "Fallback" and pid in previous_fallback_ids:
-                was_fallback_promoted = True
-
-            results.append({
+            result = {
                 "fit_level": fit_level,
                 "match_score_percentage": round(normalized_score * 100, 2),
                 "position_id": pid,
@@ -184,7 +169,12 @@ def get_recommendations():
                 "technical_skill_fit_percentage": round((matched["technical_skills"] / total["technical_skills"]) * 100, 2) if total["technical_skills"] else 0,
                 "non_technical_skill_fit_percentage": round((matched["non_technical_skills"] / total["non_technical_skills"]) * 100, 2) if total["non_technical_skills"] else 0,
                 "was_promoted_from_fallback": pid in previous_fallback_ids and fit_level != "Fallback"
-            })
+            }
+
+            if fit_level == "No Match":
+                no_matches.append(result)
+            else:
+                results.append(result)
 
         results.sort(key=lambda x: x['match_score_percentage'], reverse=True)
         session["recommended_positions"] = [r["position_id"] for r in results]
@@ -245,7 +235,6 @@ def get_recommendations():
     finally:
         if 'connection' in locals() and connection.is_connected():
             connection.close()
-
 
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
