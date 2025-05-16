@@ -147,7 +147,6 @@ def get_recommendations():
             if not base:
                 continue
 
-            # ✅ Normalize both sides
             normalized_score = matched_weight / total_weight
             normalized_base = base / total_weight
 
@@ -246,6 +245,7 @@ def get_recommendations():
     finally:
         if 'connection' in locals() and connection.is_connected():
             connection.close()
+
 
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
