@@ -521,8 +521,7 @@ def get_fallback_prerequisites():
             if not base:
                 continue
 
-            fit_level = get_fit_level(matched_weight, total_weight)
-
+            fit_level = get_fit_level(matched_weight, base)
             if fit_level == "Fallback":
                 fallback_positions.append((pid, pos, matched))
 
@@ -662,4 +661,3 @@ def set_debug_session():
         import traceback
         traceback.print_exc()
         return jsonify({"success": False, "message": str(e)}), 500
-
