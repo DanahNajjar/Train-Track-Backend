@@ -22,9 +22,9 @@ def validate_user_input(subject_ids, tech_skills, non_tech_skills, is_fallback=F
 # ✅ Mentor’s scoring logic
 def get_fit_level(score, base):
     if score < base * 0.75:
-        return "Fallback"              # Lowest
-    elif score < base:
         return "No Match"
+    elif score < base:
+        return "Fallback"
     elif score < base * 1.25:
         return "Partial Match"
     elif score < base * 1.5:
@@ -32,43 +32,7 @@ def get_fit_level(score, base):
     elif score < base * 1.75:
         return "Very Strong Match"
     else:
-        return "Perfect Match"         # Highest
-
-from flask import Blueprint, request, jsonify, current_app, session
-from api.db import get_db_connection
-import json
-
-DEBUG_BYPASS_SESSION = True
-recommendation_routes = Blueprint('recommendation', __name__)
-
-# ✅ Input validation
-def validate_user_input(subject_ids, tech_skills, non_tech_skills, is_fallback=False):
-    if not is_fallback:
-        if not 3 <= len(subject_ids) <= 7:
-            return "Please select between 3 and 7 subjects."
-        if not 3 <= len(tech_skills) <= 8:
-            return "Please select between 3 and 8 technical skills."
-        if not 3 <= len(non_tech_skills) <= 5:
-            return "Please select between 3 and 5 non-technical skills."
-    else:
-        if len(subject_ids) == 0 and len(tech_skills) == 0 and len(non_tech_skills) == 0:
-            return "Please select at least one skill or subject to improve your result."
-    return None
-
-# ✅ Mentor’s scoring logic
-if score < base * 0.75:
-    return "No Match"       # ✅ Lowest level now
-elif score < base:
-    return "Fallback"       # ✅ Slightly better
-elif score < base * 1.25:
-    return "Partial Match"
-elif score < base * 1.5:
-    return "Strong Match"
-elif score < base * 1.75:
-    return "Very Strong Match"
-else:
-    return "Perfect Match"
-
+        return "Perfect Match"
 
 @recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
