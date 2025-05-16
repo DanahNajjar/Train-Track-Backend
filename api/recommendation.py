@@ -56,7 +56,6 @@ def get_recommendations():
         non_tech_skills = set(data.get("non_technical_skills", []))
         previous_fallback_ids = set(data.get("previous_fallback_ids", []))
         was_fallback_promoted = False
-        no_matches = []
 
         advanced_preferences = data.get("advanced_preferences", {})
         has_preferences = any([
@@ -82,9 +81,11 @@ def get_recommendations():
         if error:
             return jsonify({"success": False, "message": error}), 400
 
+        # Load types
         cursor.execute("SELECT id, type FROM prerequisites")
         types = {int(row['id']): row['type'] for row in cursor.fetchall()}
 
+        # Load position-prerequisite mapping
         cursor.execute("""
             SELECT pp.position_id, pp.prerequisite_id, pp.weight,
                    p.name AS position_name, p.min_fit_score
@@ -166,26 +167,29 @@ def get_recommendations():
         results.sort(key=lambda x: x['match_score_percentage'], reverse=True)
         session["recommended_positions"] = [r["position_id"] for r in results]
 
-        # ✅ Top-level filter rule
-        if results:
-            top_fit_level = results[0]["fit_level"]
-
-            if top_fit_level == "Perfect Match":
-                results = [results[0]]
-                current_app.logger.info("🎯 Top result is a Perfect Match — showing only one result.")
-            elif top_fit_level in ["Fallback", "No Match"]:
-                results = []
-                current_app.logger.info("⚠️ Top result is Fallback or No Match — hiding all results.")
-
+        # ✅ Separate results by fit level
+        perfect_matches = [r for r in results if r["fit_level"] == "Perfect Match"]
+        strong_matches = [r for r in results if r["fit_level"] in ["Very Strong Match", "Strong Match", "Partial Match"]]
         fallbacks = [r for r in results if r["fit_level"] == "Fallback"]
-        strong_matches = [r for r in results if r["fit_level"] in ["Perfect Match", "Very Strong Match", "Strong Match", "Partial Match"]]
+        no_matches = [r for r in results if r["fit_level"] == "No Match"]
 
-        if strong_matches:
+        if perfect_matches:
             return jsonify({
                 "success": True,
                 "fallback_possible": False,
                 "fallback_triggered": False,
-                "was_fallback_promoted": was_fallback_promoted,
+                "was_fallback_promoted": False,
+                "recommended_positions": [perfect_matches[0]],
+                "should_fetch_companies": has_preferences,
+                "company_filter_ids": company_filter_ids
+            }), 200
+
+        elif strong_matches:
+            return jsonify({
+                "success": True,
+                "fallback_possible": False,
+                "fallback_triggered": False,
+                "was_fallback_promoted": False,
                 "recommended_positions": strong_matches,
                 "should_fetch_companies": has_preferences,
                 "company_filter_ids": company_filter_ids
@@ -208,8 +212,7 @@ def get_recommendations():
                 "fallback_possible": False,
                 "fallback_triggered": False,
                 "was_fallback_promoted": False,
-                "recommended_positions": [],
-                "no_match_positions": no_matches,
+                "recommended_positions": no_matches,
                 "should_fetch_companies": has_preferences,
                 "company_filter_ids": company_filter_ids
             }), 200
