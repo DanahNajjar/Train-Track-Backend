@@ -144,11 +144,16 @@ def get_recommendations():
                 continue
 
             base = pos["min_fit_score"]
-            if not base or matched_weight < base:
+            if not base:
                 continue
 
-            # ✅ Passed base fit score → now normalize score
+            # ✅ Normalize both sides
             normalized_score = matched_weight / total_weight
+            normalized_base = base / total_weight
+
+            if normalized_score < normalized_base:
+                continue
+
             fit_level = get_fit_level(normalized_score, 1.0)
 
             current_app.logger.info(
