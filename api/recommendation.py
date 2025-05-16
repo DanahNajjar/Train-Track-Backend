@@ -233,8 +233,8 @@ def get_recommendations():
     from flask import session
     import json
 
-    current_app.logger.info("\ud83d\udd25 /recommendations route HIT")
-    current_app.logger.info("\ud83d\ude80 Starting recommendation processing...")
+    current_app.logger.info("🔥 /recommendations route HIT")
+    current_app.logger.info("🚀 Starting recommendation processing...")
 
     data = request.get_json()
 
@@ -270,9 +270,9 @@ def get_recommendations():
             "company_culture": advanced_preferences.get("company_culture", [])
         }
 
-        current_app.logger.info(f"\ud83d\udcd8 Subjects: {subject_ids}")
-        current_app.logger.info(f"\ud83d\udee0\ufe0f Tech Skills: {tech_skills}")
-        current_app.logger.info(f"\ud83e\udde0 Non-Tech Skills: {non_tech_skills}")
+        current_app.logger.info(f"📘 Subjects: {subject_ids}")
+        current_app.logger.info(f"🛠️ Tech Skills: {tech_skills}")
+        current_app.logger.info(f"🧠 Non-Tech Skills: {non_tech_skills}")
 
         is_fallback = bool(data.get("is_fallback", False)) or bool(previous_fallback_ids)
         error = validate_user_input(subject_ids, tech_skills, non_tech_skills, is_fallback)
@@ -345,11 +345,10 @@ def get_recommendations():
             if matched_weight < base:
                 fit_level = "Fallback"
             else:
-                normalized_score = matched_weight / total_weight
-                fit_level = get_fit_level(normalized_score, 1.0)
+                fit_level = get_fit_level(matched_weight, base)
 
             current_app.logger.info(
-                f"\ud83e\uddea Position: {pos['position_name']} | Matched: {matched_weight} | "
+                f"🧪 Position: {pos['position_name']} | Matched: {matched_weight} | "
                 f"Total: {total_weight} | Min Fit: {base} | Fit Level: {fit_level}"
             )
 
@@ -417,7 +416,7 @@ def get_recommendations():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        current_app.logger.error(f"\u274c Error: {str(e)}")
+        current_app.logger.error(f"❌ Error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
     finally:
