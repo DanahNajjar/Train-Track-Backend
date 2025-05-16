@@ -144,13 +144,12 @@ def get_recommendations():
                 continue
 
             base = pos["min_fit_score"]
-            if not base:
-                continue
-            if matched_weight < base:
+            if not base or matched_weight < base:
                 continue
 
-            fit_level = get_fit_level(matched_weight, base)
-
+            # ✅ Passed base fit score → now normalize score
+            normalized_score = matched_weight / total_weight
+            fit_level = get_fit_level(normalized_score, 1.0)
 
             current_app.logger.info(
                 f"🧪 Position: {pos['position_name']} | Matched: {matched_weight} | "
@@ -160,7 +159,7 @@ def get_recommendations():
             if fit_level == "No Match":
                 no_matches.append({
                     "fit_level": fit_level,
-                    "match_score_percentage": round((matched_weight / total_weight) * 100, 2),
+                    "match_score_percentage": round(normalized_score * 100, 2),
                     "position_id": pid,
                     "position_name": pos["position_name"],
                     "subject_fit_percentage": round((matched["subjects"] / total["subjects"]) * 100, 2) if total["subjects"] else 0,
@@ -172,11 +171,9 @@ def get_recommendations():
             if fit_level != "Fallback" and pid in previous_fallback_ids:
                 was_fallback_promoted = True
 
-            overall_pct = round((matched_weight / total_weight) * 100, 2)
-
             results.append({
                 "fit_level": fit_level,
-                "match_score_percentage": overall_pct,
+                "match_score_percentage": round(normalized_score * 100, 2),
                 "position_id": pid,
                 "position_name": pos["position_name"],
                 "subject_fit_percentage": round((matched["subjects"] / total["subjects"]) * 100, 2) if total["subjects"] else 0,
@@ -245,7 +242,6 @@ def get_recommendations():
         if 'connection' in locals() and connection.is_connected():
             connection.close()
 
-            
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
     try:
