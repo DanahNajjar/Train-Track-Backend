@@ -341,14 +341,22 @@ def get_companies_for_positions():
         if 'connection' in locals() and connection.is_connected():
             connection.close()
 
+# 🔧 Add this helper if not defined globally
+def build_in_clause(ids):
+    return ','.join(['%s'] * len(ids)), tuple(ids)
+
+def log_error(message):
+    current_app.logger.error(f"❌ {message}")
+
 @recommendation_routes.route('/user-input-summary', methods=['POST'])
 def user_input_summary():
+    connection = None
     try:
         data = request.get_json()
         full_name = data.get("full_name")
         gender = data.get("gender")
         major_id = data.get("major_id")
-        date_of_birth = data.get("date_of_birth")  # ✅ NEW FIELD
+        date_of_birth = data.get("date_of_birth")
         subject_ids = data.get("subjects", [])
         technical_skill_ids = data.get("technical_skills", [])
         non_technical_skill_ids = data.get("non_technical_skills", [])
@@ -358,87 +366,88 @@ def user_input_summary():
         cursor = connection.cursor(dictionary=True)
 
         # ✅ Get Major Name
-        cursor.execute("SELECT name FROM prerequisites WHERE id = %s AND type = 'Major'", (major_id,))
+        cursor.execute("""
+            SELECT name FROM prerequisites 
+            WHERE id = %s AND type = 'Major'
+        """, (major_id,))
         major_row = cursor.fetchone()
         major_name = major_row['name'] if major_row else None
 
-        # ✅ Get Selected Subjects
+        # ✅ Get Subjects grouped by category
         subject_names_by_cat = []
         if subject_ids:
-            format_strings, category_ids = build_in_clause(subject_ids)
-            query = f"""
+            format_strings, subject_tuple = build_in_clause(subject_ids)
+            cursor.execute(f"""
                 SELECT p.id, p.name, c.id AS category_id, c.name AS category_name
                 FROM prerequisites p
                 JOIN categories c ON p.category_id = c.id
                 WHERE p.id IN ({format_strings}) AND p.type = 'Subject'
-            """
-            cursor.execute(query, tuple(subject_ids))
-            rows = cursor.fetchall()
+            """, subject_tuple)
             grouped_subjects = {}
-            for row in rows:
+            for row in cursor.fetchall():
                 cat_id = row['category_id']
-                if cat_id not in grouped_subjects:
-                    grouped_subjects[cat_id] = {
-                        "category_id": cat_id,
-                        "category_name": row['category_name'],
-                        "subjects": []
-                    }
-                grouped_subjects[cat_id]["subjects"].append({"id": row["id"], "name": row["name"]})
+                grouped_subjects.setdefault(cat_id, {
+                    "category_id": cat_id,
+                    "category_name": row['category_name'],
+                    "subjects": []
+                })["subjects"].append({
+                    "id": row["id"], "name": row["name"]
+                })
             subject_names_by_cat = list(grouped_subjects.values())
 
-        # ✅ Get Technical Skills
+        # ✅ Get Technical Skills grouped by category
         tech_skills_by_cat = []
         if technical_skill_ids:
-            format_strings, category_ids = build_in_clause(technical_skill_ids)
-            query = f"""
+            format_strings, tech_tuple = build_in_clause(technical_skill_ids)
+            cursor.execute(f"""
                 SELECT p.id, p.name, c.id AS category_id, c.name AS category_name
                 FROM prerequisites p
                 JOIN categories c ON p.category_id = c.id
                 WHERE p.id IN ({format_strings}) AND p.type = 'Technical Skill'
-            """
-            cursor.execute(query, tuple(technical_skill_ids))
-            rows = cursor.fetchall()
+            """, tech_tuple)
             grouped_skills = {}
-            for row in rows:
+            for row in cursor.fetchall():
                 cat_id = row['category_id']
-                if cat_id not in grouped_skills:
-                    grouped_skills[cat_id] = {
-                        "category_id": cat_id,
-                        "category_name": row["category_name"],
-                        "skills": []
-                    }
-                grouped_skills[cat_id]["skills"].append({"id": row["id"], "name": row["name"]})
+                grouped_skills.setdefault(cat_id, {
+                    "category_id": cat_id,
+                    "category_name": row["category_name"],
+                    "skills": []
+                })["skills"].append({
+                    "id": row["id"], "name": row["name"]
+                })
             tech_skills_by_cat = list(grouped_skills.values())
 
-        # ✅ Get Non-Technical Skills
+        # ✅ Get Non-Technical Skills as flat list
         non_tech_names = []
         if non_technical_skill_ids:
-            format_strings, category_ids = build_in_clause(non_technical_skill_ids)
-            query = f"""
+            format_strings, nontech_tuple = build_in_clause(non_technical_skill_ids)
+            cursor.execute(f"""
                 SELECT name FROM prerequisites
                 WHERE id IN ({format_strings}) AND type = 'Non-Technical Skill'
-            """
-            cursor.execute(query, tuple(non_technical_skill_ids))
+            """, nontech_tuple)
             non_tech_names = [row['name'] for row in cursor.fetchall()]
 
-        # ✅ Final Output: Ordered by Wizard Steps
+        # ✅ Final Ordered Response
+        from collections import OrderedDict
         user_info = OrderedDict()
         user_info["full_name"] = full_name
         user_info["gender"] = gender
-        user_info["date_of_birth"] = date_of_birth  # ✅ NEW LINE
+        user_info["date_of_birth"] = date_of_birth
         user_info["major"] = major_name
         user_info["subjects"] = subject_names_by_cat
         user_info["technical_skills"] = tech_skills_by_cat
         user_info["non_technical_skills"] = non_tech_names
         user_info["preferences"] = preferences
 
-        return create_response(True, user_info)
+        return jsonify({"success": True, "data": user_info}), 200
 
     except Exception as e:
         log_error(f"Error in user input summary: {e}")
-        return create_response(False, message=str(e), status_code=500)
+        return jsonify({"success": False, "message": str(e)}), 500
+
     finally:
-        if connection.is_connected():
+        if connection and connection.is_connected():
+            cursor.close()
             connection.close()
 
 @recommendation_routes.route('/recommendations/fallback-prerequisites', methods=['POST'])
@@ -557,10 +566,13 @@ def get_position_details(position_id):
         if not DEBUG_BYPASS_SESSION:
             allowed_ids = session.get("recommended_positions")
             if allowed_ids is not None and position_id not in allowed_ids:
+                current_app.logger.info(f"🚫 Access denied for position ID {position_id}")
                 return jsonify({
                     "success": False,
                     "message": "Access denied. This position was not recommended."
                 }), 403
+
+        current_app.logger.info(f"📌 Fetching details for position ID {position_id}")
 
         # ✅ Connect to DB
         connection = get_db_connection()
@@ -634,7 +646,6 @@ def get_position_details(position_id):
         if connection and connection.is_connected():
             cursor.close()
             connection.close()
-
 
 @recommendation_routes.route('/debug/set-session', methods=['POST'])
 def set_debug_session():

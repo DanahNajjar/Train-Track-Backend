@@ -19,7 +19,11 @@ def upload_category_images_once():
     connection.close()
 
 # ✅ Call once when app starts
-upload_category_images_once()
+try:
+    upload_category_images_once()
+except Exception as e:
+    log_error(f"❌ Failed to upload category images at startup: {e}")
+
 
 # ✅ Helper function to build 'IN' clause dynamically
 def build_in_clause(ids):
