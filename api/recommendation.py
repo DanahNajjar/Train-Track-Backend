@@ -1,6 +1,8 @@
 from flask import Blueprint, request, jsonify, current_app, session
 from api.db import get_db_connection
 import json
+from mysql.connector.cursor import MySQLCursorDict
+
 
 DEBUG_BYPASS_SESSION = True
 recommendation_routes = Blueprint('recommendation', __name__)
@@ -49,7 +51,7 @@ def get_recommendations():
 
     try:
         connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor(cursor_class=MySQLCursorDict)
 
         subject_ids = set(data.get("subjects", []))
         tech_skills = set(data.get("technical_skills", []))
@@ -239,6 +241,7 @@ def get_recommendations():
         if 'connection' in locals() and connection.is_connected():
             connection.close()
 
+
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
     try:
@@ -265,7 +268,8 @@ def get_companies_for_positions():
             }), 200
 
         connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor(cursor_class=MySQLCursorDict)
+
 
         # ✅ Required position filter
         filters = ["cp.position_id IN ({})".format(','.join(['%s'] * len(position_ids)))]
@@ -363,7 +367,8 @@ def user_input_summary():
         preferences = data.get("preferences", {})
 
         connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor(cursor_class=MySQLCursorDict)
+
 
         # ✅ Get Major Name
         cursor.execute("""
@@ -459,7 +464,8 @@ def get_fallback_prerequisites():
         non_tech_skills = set(data.get("non_technical_skills", []))
 
         connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor(cursor_class=MySQLCursorDict)
+
 
         # Load prerequisite types
         cursor.execute("SELECT id, type FROM prerequisites")
@@ -576,7 +582,8 @@ def get_position_details(position_id):
 
         # ✅ Connect to DB
         connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
+        cursor = connection.cursor(cursor_class=MySQLCursorDict)
+
 
         # ✅ Get position info
         cursor.execute("""
