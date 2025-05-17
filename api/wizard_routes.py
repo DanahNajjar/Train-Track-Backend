@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app
 import mysql.connector
+from db import get_db_connection  ✅
 import base64
 import os
 import logging
@@ -9,21 +10,6 @@ from collections import OrderedDict
 logging.basicConfig(level=logging.INFO)
 
 wizard_routes = Blueprint('wizard_routes', __name__)
-
-# ✅ DB connection for all use cases
-def get_db_connection():
-    try:
-        return mysql.connector.connect(
-            host=os.environ.get("DB_HOST"),
-            user=os.environ.get("DB_USER"),
-            password=os.environ.get("DB_PASSWORD"),
-            database=os.environ.get("DB_NAME"),
-            port=int(os.environ.get("DB_PORT", 3306))
-        )
-    except mysql.connector.Error as err:
-        log_error(f"Database connection failed: {err}")
-        raise
-
 # Log error messages
 def log_error(error_message):
     logging.error(f"Error occurred: {error_message}")
