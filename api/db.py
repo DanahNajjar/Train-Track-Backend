@@ -1,6 +1,5 @@
 import pymysql
 import os
-import logging
 
 def get_db_connection():
     try:
@@ -10,11 +9,10 @@ def get_db_connection():
             password=os.getenv("DB_PASSWORD"),
             database=os.getenv("DB_NAME"),
             port=int(os.getenv("DB_PORT", 3306)),
-            ssl={"ssl": {}},            # ✅ Needed for Railway SSL
+            ssl={"ssl": {}},  # ✅ Required for Railway
             connect_timeout=10
         )
-        logging.info("✅ Successfully connected to the database.")
         return connection
     except pymysql.MySQLError as err:
-        logging.error(f"❌ Database connection failed: {err}")
+        print(f"❌ Database connection failed: {err}")
         raise
