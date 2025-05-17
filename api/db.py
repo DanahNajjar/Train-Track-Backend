@@ -9,8 +9,12 @@ def get_db_connection():
             password=os.environ.get("DB_PASSWORD"),
             database=os.environ.get("DB_NAME"),
             port=int(os.environ.get("DB_PORT", 3306)),
-            connection_timeout=10
+            connection_timeout=10,
+            autocommit=True
         )
+        # ✅ Auto-reconnect if needed
+        if not connection.is_connected():
+            connection.reconnect(attempts=3, delay=2)
         return connection
     except mysql.connector.Error as err:
         print(f"❌ Database connection failed: {err}")
