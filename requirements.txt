@@ -26,7 +26,7 @@ plotly==6.0.1
 protobuf==5.29.4
 pyarrow==19.0.1
 pydeck==0.9.1
-PyMySQL==1.1.1              # ✅ Replaces mysql-connector-python
+PyMySQL==1.1.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.0
 pytz==2025.2
