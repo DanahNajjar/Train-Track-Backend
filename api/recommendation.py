@@ -1,7 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app, session
 from api.db import get_db_connection
 import json
-from mysql.connector.cursor import MySQLCursorDict
 
 
 DEBUG_BYPASS_SESSION = True
