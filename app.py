@@ -1,16 +1,16 @@
 from flask import Flask, send_from_directory
 from flask_cors import CORS
-from dotenv import load_dotenv
 import os
 import logging
 
 # ✅ Setup Logging
 logging.basicConfig(level=logging.INFO)
 
-# ✅ Load environment variables
-env_file = ".env.remote" if os.getenv("FLASK_ENV") == "production" else ".env.local"
-load_dotenv(dotenv_path=env_file)
-logging.info(f"🔧 Loaded environment from: {env_file}")
+# ✅ Load environment variables (only for local)
+if os.getenv("FLASK_ENV") != "production":
+    from dotenv import load_dotenv
+    load_dotenv(dotenv_path=".env.local")
+    logging.info("🔧 Loaded local .env.local file")
 
 # ✅ Create Flask app
 app = Flask(__name__, static_folder='static')
@@ -68,6 +68,6 @@ def serve_static(filename):
 def test():
     return "✅ /test route is working!"
 
-# ✅ Run server
+# ✅ Run server (local only)
 if __name__ == '__main__':
     app.run(debug=True)
