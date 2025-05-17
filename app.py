@@ -6,11 +6,15 @@ import logging
 # ✅ Setup Logging
 logging.basicConfig(level=logging.INFO)
 
-# ✅ Load environment variables (only for local)
-if os.getenv("FLASK_ENV") != "production":
+# ✅ Load environment based on FLASK_ENV
+if os.getenv("FLASK_ENV") == "production":
+    from dotenv import load_dotenv
+    load_dotenv(dotenv_path=".env.remote")
+    logging.info("🔧 Loaded .env.remote for production")
+else:
     from dotenv import load_dotenv
     load_dotenv(dotenv_path=".env.local")
-    logging.info("🔧 Loaded local .env.local file")
+    logging.info("🔧 Loaded .env.local for development")
 
 # ✅ Create Flask app
 app = Flask(__name__, static_folder='static')
