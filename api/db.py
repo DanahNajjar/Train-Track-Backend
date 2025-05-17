@@ -9,7 +9,8 @@ def get_db_connection():
             password=os.getenv("DB_PASSWORD"),
             database=os.getenv("DB_NAME"),
             port=int(os.getenv("DB_PORT", 3306)),
-            ssl={"ssl": {}}  # ✅ Required for Railway external access
+            ssl={"ssl": {}},
+            connect_timeout=10  # ⏳ Prevent silent fail or hang
         )
     except pymysql.MySQLError as err:
         print(f"❌ PyMySQL connection failed: {err}")
