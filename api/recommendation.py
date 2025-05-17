@@ -51,7 +51,8 @@ def get_recommendations():
 
     try:
         connection = get_db_connection()
-        cursor = connection.cursor(cursor_class=MySQLCursorDict)
+        cursor = connection.cursor(dictionary=True)
+
 
         subject_ids = set(data.get("subjects", []))
         tech_skills = set(data.get("technical_skills", []))
@@ -268,7 +269,8 @@ def get_companies_for_positions():
             }), 200
 
         connection = get_db_connection()
-        cursor = connection.cursor(cursor_class=MySQLCursorDict)
+        cursor = connection.cursor(dictionary=True)
+
 
 
         # ✅ Required position filter
@@ -367,7 +369,7 @@ def user_input_summary():
         preferences = data.get("preferences", {})
 
         connection = get_db_connection()
-        cursor = connection.cursor(cursor_class=MySQLCursorDict)
+        cursor = connection.cursor(dictionary=True)
 
 
         # ✅ Get Major Name
@@ -464,7 +466,8 @@ def get_fallback_prerequisites():
         non_tech_skills = set(data.get("non_technical_skills", []))
 
         connection = get_db_connection()
-        cursor = connection.cursor(cursor_class=MySQLCursorDict)
+        cursor = connection.cursor(dictionary=True)
+
 
 
         # Load prerequisite types
@@ -582,8 +585,7 @@ def get_position_details(position_id):
 
         # ✅ Connect to DB
         connection = get_db_connection()
-        cursor = connection.cursor(cursor_class=MySQLCursorDict)
-
+        cursor = connection.cursor(dictionary=True)
 
         # ✅ Get position info
         cursor.execute("""
