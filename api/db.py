@@ -10,7 +10,7 @@ def get_db_connection():
             database=os.getenv("DB_NAME"),
             port=int(os.getenv("DB_PORT", 3306)),
             ssl={"ssl": {}},
-            connect_timeout=10  # ⏳ Prevent silent fail or hang
+            connect_timeout=10
         )
     except pymysql.MySQLError as err:
         print(f"❌ PyMySQL connection failed: {err}")
