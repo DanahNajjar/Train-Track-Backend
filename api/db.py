@@ -12,7 +12,6 @@ def get_db_connection():
             connection_timeout=10,
             autocommit=True
         )
-        # ✅ Auto-reconnect if needed
         if not connection.is_connected():
             connection.reconnect(attempts=3, delay=2)
         return connection
