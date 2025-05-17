@@ -9,15 +9,15 @@ services:
     envVars:
       - key: FLASK_ENV
         value: production
-      - key: FLASK_SECRET_KEY
-        value: prod_secret_key
       - key: DB_HOST
-        value: shuttle.proxy.rlwy.net
+        value: ballast.proxy.rlwy.net
       - key: DB_PORT
-        value: "59084"
+        value: "3306"
       - key: DB_USER
         value: root
       - key: DB_PASSWORD
-        value: ejFywNNFCowuXALqixQkPJjzFpyIVoTN
+        value: dzdTnScCLRqYyDnuOEwGznqrMBimokbl
       - key: DB_NAME
         value: railway
+      - key: FLASK_SECRET_KEY
+        value: prod_secret_key
