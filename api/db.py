@@ -1,18 +1,16 @@
-import mysql.connector
+import pymysql
 import os
 
 def get_db_connection():
     try:
-        return mysql.connector.connect(
+        return pymysql.connect(
             host=os.getenv("DB_HOST"),
             user=os.getenv("DB_USER"),
             password=os.getenv("DB_PASSWORD"),
             database=os.getenv("DB_NAME"),
             port=int(os.getenv("DB_PORT", 3306)),
-            ssl_disabled=False,            # ✅ Required for Render + Railway
-            connection_timeout=10,         # ⏳ Prevent timeout errors
-            use_pure=True                  # ✅ Use Python connector directly
+            ssl={"ssl": {}}  # ✅ Required for Railway SSL via proxy
         )
-    except mysql.connector.Error as err:
-        print(f"❌ Database connection failed: {err}")
+    except pymysql.MySQLError as err:
+        print(f"❌ PyMySQL connection failed: {err}")
         raise
