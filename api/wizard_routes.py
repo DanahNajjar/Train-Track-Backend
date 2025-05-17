@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app
 import mysql.connector
-from db import get_db_connection  ✅
+from api.db import get_db_connection
 import base64
 import os
 import logging

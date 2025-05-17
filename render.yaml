@@ -1,21 +1,23 @@
 services:
   - type: web
-    name: train-track-api
+    name: train-track-backend
     env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    pythonVersion: 3.10
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app"
+    autoDeploy: true
     envVars:
       - key: FLASK_ENV
         value: production
-      - key: FLASK_SECRET_KEY
-        value: train_track_secret_key
-      - key: MYSQL_HOST
+      - key: DB_HOST
         value: shuttle.proxy.rlwy.net
-      - key: MYSQL_PORT
-        value: 59084
-      - key: MYSQL_USER
+      - key: DB_PORT
+        value: "59084"
+      - key: DB_USER
         value: root
-      - key: MYSQL_PASSWORD
+      - key: DB_PASSWORD
         value: ejFywNNFCowuXALqixQkPJjzFpyIVoTN
-      - key: MYSQL_DATABASE
+      - key: DB_NAME
         value: railway
+      - key: FLASK_SECRET_KEY
+        value: prod_secret_key
