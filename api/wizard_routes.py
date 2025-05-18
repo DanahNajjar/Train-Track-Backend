@@ -237,8 +237,7 @@ def get_non_technical_skills():
         if connection.is_connected():
             cursor.close()
             connection.close()
-
-
+            
 # ✅ Step 5: Save Advanced Preferences 
 @wizard_routes.route('/preferences', methods=['GET'])
 def get_advanced_preferences():
