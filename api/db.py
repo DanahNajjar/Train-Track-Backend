@@ -1,5 +1,6 @@
 import mysql.connector
 import os
+import logging  # 👍 For better error handling
 
 def get_db_connection():
     try:
@@ -16,5 +17,5 @@ def get_db_connection():
             connection.reconnect(attempts=3, delay=2)
         return connection
     except mysql.connector.Error as err:
-        print(f"❌ Database connection failed: {err}")
+        logging.error(f"❌ Database connection failed: {err}")
         raise
