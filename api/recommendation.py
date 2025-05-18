@@ -241,7 +241,6 @@ def get_recommendations():
         if 'connection' in locals() and connection.is_connected():
             connection.close()
 
-
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
     try:
@@ -269,8 +268,6 @@ def get_companies_for_positions():
 
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
-
-
 
         # ✅ Required position filter
         filters = ["cp.position_id IN ({})".format(','.join(['%s'] * len(position_ids)))]
@@ -370,7 +367,6 @@ def user_input_summary():
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-
         # ✅ Get Major Name
         cursor.execute("""
             SELECT name FROM prerequisites 
@@ -466,9 +462,7 @@ def get_fallback_prerequisites():
 
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
-
-
-
+        
         # Load prerequisite types
         cursor.execute("SELECT id, type FROM prerequisites")
         types = {int(row['id']): row['type'] for row in cursor.fetchall()}
