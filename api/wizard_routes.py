@@ -129,6 +129,7 @@ def get_subjects_by_categories():
     return create_response(True, list(grouped.values()))
 
 # ✅ Step 4: Get Technical Skills by Category IDs
+# ✅ Step 4: Get Technical Skills by Category IDs
 @wizard_routes.route('/technical-skills', methods=['GET'])
 def get_technical_skills_grouped():
     ids_param = request.args.get('category_ids')
@@ -153,8 +154,8 @@ def get_technical_skills_grouped():
             tc.name AS tech_category_name
         FROM prerequisites p
         JOIN category_skill_map csm ON p.id = csm.skill_id
-        JOIN categories sc ON csm.category_id = sc.id
-        JOIN categories tc ON p.category_id = tc.id
+        JOIN categories sc ON csm.category_id = sc.id           -- Subject category name
+        JOIN categories tc ON p.category_id = tc.id             -- Technical category name
         WHERE p.type = 'Technical Skill' AND csm.category_id IN ({format_strings})
         ORDER BY sc.id, tc.name, p.name
     """
@@ -163,12 +164,12 @@ def get_technical_skills_grouped():
     connection.close()
 
     subject_grouped = {}
-    globally_seen_skill_ids = set()  # ✅ GLOBAL deduplication
+    globally_seen_skill_ids = set()  # ✅ Deduplication across all groups
 
     for row in rows:
         skill_id = row["id"]
         if skill_id in globally_seen_skill_ids:
-            continue  # ✅ Skip skill if already added globally
+            continue  # ✅ Skip if already shown globally
         globally_seen_skill_ids.add(skill_id)
 
         skill_name = row["name"]
@@ -192,23 +193,25 @@ def get_technical_skills_grouped():
             "name": skill_name
         })
 
+    # ✅ Convert nested dict to final list format
     final_output = []
     for subject in subject_grouped.values():
         formatted = []
         for cat_name, skills in subject["tech_categories"].items():
-            formatted.append({
-                "tech_category_name": cat_name,
-                "skills": skills
+            if skills:  # ✅ only add categories with skills
+                formatted.append({
+                    "tech_category_name": cat_name,
+                    "skills": skills
+                })
+
+        if formatted:  # ✅ only add subject group if it has at least one skill
+            final_output.append({
+                "Subject_category_id": subject["Subject_category_id"],
+                "Subject_category_name": subject["Subject_category_name"],
+                "tech_categories": formatted
             })
 
-        final_output.append({
-            "Subject_category_id": subject["Subject_category_id"],
-            "Subject_category_name": subject["Subject_category_name"],
-            "tech_categories": formatted
-        })
-
     return create_response(True, final_output)
-
 
     # ✅ Step 4: Get Non-Technical Skills
 @wizard_routes.route('/non-technical-skills', methods=['GET'])
