@@ -668,6 +668,34 @@ def get_position_details(position_id):
         if connection and connection.is_connected():
             cursor.close()
             connection.close()
+@recommendation_routes.route('/user-results/<user_id>', methods=['GET'])
+def get_user_results(user_id):
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT id, submission_data, result_data, submitted_at
+            FROM user_results
+            WHERE user_id = %s
+            ORDER BY submitted_at DESC
+        """, (user_id,))
+
+        results = cursor.fetchall()
+
+        return jsonify({
+            "success": True,
+            "trials": results
+        }), 200
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "message": str(e)}), 500
+
+    finally:
+        if connection and connection.is_connected():
+            connection.close()
 
 @recommendation_routes.route('/debug/set-session', methods=['POST'])
 def set_debug_session():
