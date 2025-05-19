@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory 
 from flask_cors import CORS
 import os
 import logging
@@ -27,12 +27,13 @@ FRONTEND_ORIGINS = [
     "https://train-track-frontend.onrender.com"
 ]
 
-# ✅ Enable CORS
+# ✅ Enable CORS (NOW INCLUDING /user-input-summary)
 CORS(app, resources={
     r"/wizard/*": {"origins": FRONTEND_ORIGINS},
     r"/position/*": {"origins": FRONTEND_ORIGINS},
     r"/recommendations*": {"origins": FRONTEND_ORIGINS},
-    r"/companies-for-positions": {"origins": FRONTEND_ORIGINS}
+    r"/companies-for-positions": {"origins": FRONTEND_ORIGINS},
+    r"/user-input-summary": {"origins": FRONTEND_ORIGINS}  # ✅ Added to fix the issue!
 }, supports_credentials=True)
 
 # ✅ Import & register blueprints
