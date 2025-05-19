@@ -37,10 +37,14 @@ def get_fit_level(score, base):
 
 @recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
-    current_app.logger.info("\ud83d\udd25 /recommendations route HIT")
-    current_app.logger.info("\ud83d\ude80 Starting recommendation processing...")
+    current_app.logger.info("🔥 /recommendations route HIT")
+    current_app.logger.info("🚀 Starting recommendation processing...")
 
     data = request.get_json()
+
+    # ✅ Extract user_id from frontend (guest ID or real account)
+    user_id = data.get("user_id", "guest_unknown")
+    current_app.logger.info(f"🧾 User ID for saving: {user_id}")
 
     if isinstance(data.get("subjects"), str):
         try:
@@ -51,7 +55,6 @@ def get_recommendations():
     try:
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
-
 
         subject_ids = set(data.get("subjects", []))
         tech_skills = set(data.get("technical_skills", []))
@@ -74,9 +77,9 @@ def get_recommendations():
             "company_culture": advanced_preferences.get("company_culture", [])
         }
 
-        current_app.logger.info(f"\ud83d\udcd8 Subjects: {subject_ids}")
-        current_app.logger.info(f"\ud83d\udee0\ufe0f Tech Skills: {tech_skills}")
-        current_app.logger.info(f"\ud83e\udde0 Non-Tech Skills: {non_tech_skills}")
+        current_app.logger.info(f"📘 Subjects: {subject_ids}")
+        current_app.logger.info(f"🛠️ Tech Skills: {tech_skills}")
+        current_app.logger.info(f"🧠 Non-Tech Skills: {non_tech_skills}")
 
         is_fallback = bool(data.get("is_fallback", False)) or bool(previous_fallback_ids)
         error = validate_user_input(subject_ids, tech_skills, non_tech_skills, is_fallback)
@@ -151,7 +154,7 @@ def get_recommendations():
             fit_level = get_fit_level(matched_weight, base)
 
             current_app.logger.info(
-                f"\ud83e\uddf2 Position: {pos['position_name']} | Matched: {matched_weight} | "
+                f"🧮 Position: {pos['position_name']} | Matched: {matched_weight} | "
                 f"Total: {total_weight} | Min Fit: {base} | Fit Level: {fit_level}"
             )
 
@@ -177,6 +180,30 @@ def get_recommendations():
         fallbacks = [r for r in results if r["fit_level"] == "Fallback"]
         no_matches = [r for r in results if r["fit_level"] == "No Match"]
 
+        # ✅ Build result data to save
+        recommendation_result = {
+            "results": results,
+            "fallback_triggered": bool(fallbacks),
+            "preferences_used": has_preferences,
+            "filters": company_filter_ids
+        }
+
+        # ✅ Save to database
+        try:
+            cursor.execute("""
+                INSERT INTO user_results (user_id, submission_data, result_data)
+                VALUES (%s, %s, %s)
+            """, (
+                user_id,
+                json.dumps(data),
+                json.dumps(recommendation_result)
+            ))
+            connection.commit()
+            current_app.logger.info("💾 Trial saved to user_results.")
+        except Exception as save_err:
+            current_app.logger.error(f"❌ Failed to save result: {save_err}")
+
+        # ✅ Return results (your logic unchanged)
         if perfect_matches:
             return jsonify({
                 "success": True,
@@ -234,7 +261,7 @@ def get_recommendations():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        current_app.logger.error(f"\u274c Error: {str(e)}")
+        current_app.logger.error(f"❌ Error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
     finally:
