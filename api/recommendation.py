@@ -468,6 +468,48 @@ def user_input_summary():
         user_info["non_technical_skills"] = non_tech_names
         user_info["preferences"] = preferences
 
+        # ✅ Append readable names for Advanced Preferences (no logic change)
+        training_mode_id = preferences.get("training_mode_id") or preferences.get("training_modes", [None])[0]
+        company_size_id = preferences.get("company_size_id") or preferences.get("company_sizes", [None])[0]
+        industry_ids = preferences.get("preferred_industry", []) or preferences.get("industries", [])
+        culture_ids = preferences.get("company_culture", [])
+
+        # 🏷 Training Mode
+        training_mode_name = None
+        if training_mode_id:
+            cursor.execute("SELECT description FROM training_modes WHERE id = %s", (training_mode_id,))
+            row = cursor.fetchone()
+            if row:
+                training_mode_name = row["description"]
+
+        # 🏢 Company Size
+        company_size_name = None
+        if company_size_id:
+            cursor.execute("SELECT description FROM company_sizes WHERE id = %s", (company_size_id,))
+            row = cursor.fetchone()
+            if row:
+                company_size_name = row["description"]
+
+        # 🏭 Industries
+        industry_names = []
+        if industry_ids:
+            format_str, inds = build_in_clause(industry_ids)
+            cursor.execute(f"SELECT name FROM industries WHERE id IN ({format_str})", inds)
+            industry_names = [row["name"] for row in cursor.fetchall()]
+
+        # 🎯 Company Culture
+        culture_names = []
+        if culture_ids:
+            format_str, cults = build_in_clause(culture_ids)
+            cursor.execute(f"SELECT name FROM company_culture_keywords WHERE id IN ({format_str})", cults)
+            culture_names = [row["name"] for row in cursor.fetchall()]
+
+        # ✅ Safely attach translated names
+        user_info["preferences"]["training_mode_name"] = training_mode_name
+        user_info["preferences"]["company_size_name"] = company_size_name
+        user_info["preferences"]["preferred_industry_names"] = industry_names
+        user_info["preferences"]["company_culture_names"] = culture_names
+
         return jsonify({"success": True, "data": user_info}), 200
 
     except Exception as e:
@@ -478,6 +520,7 @@ def user_input_summary():
         if connection and connection.is_connected():
             cursor.close()
             connection.close()
+
 
 @recommendation_routes.route('/recommendations/fallback-prerequisites', methods=['POST'])
 def get_fallback_prerequisites():
