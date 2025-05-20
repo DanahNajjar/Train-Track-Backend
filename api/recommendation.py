@@ -471,7 +471,7 @@ def user_input_summary():
         # ✅ Append readable names for Advanced Preferences (no logic change)
         training_mode_id = preferences.get("training_mode_id") or preferences.get("training_modes", [None])[0]
         company_size_id = preferences.get("company_size_id") or preferences.get("company_sizes", [None])[0]
-        industry_ids = preferences.get("preferred_industry", []) or preferences.get("industries", [])
+        industry_ids = preferences.get("preferred_industry_ids", []) or preferences.get("preferred_industry", []) or preferences.get("industries", [])
         culture_ids = preferences.get("company_culture", [])
 
         # 🏷 Training Mode
