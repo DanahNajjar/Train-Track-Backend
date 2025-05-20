@@ -389,7 +389,7 @@ def user_input_summary():
         subject_ids = data.get("subjects", [])
         technical_skill_ids = data.get("technical_skills", [])
         non_technical_skill_ids = data.get("non_technical_skills", [])
-        preferences = data.get("preferences", {})
+        preferences = data.get("advanced_preferences", {})
 
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
