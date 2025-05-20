@@ -283,7 +283,7 @@ def get_companies_for_positions():
         # ✅ Optional filters
         training_modes_raw = request.args.get('training_modes', '').strip()
         company_sizes_raw = request.args.get('company_sizes', '').strip()
-        industries_raw = request.args.get('industries', '').strip()
+        industries_raw = request.args.get('preferred_industry') or request.args.get('industries', '').strip()
         company_cultures_raw = request.args.get('company_culture', '').strip()
 
         # ✅ If all are empty → user skipped preferences
