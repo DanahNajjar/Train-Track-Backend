@@ -631,6 +631,45 @@ def get_fallback_prerequisites():
 
 DEBUG_BYPASS_SESSION = True  # ✅ Enables access to position details without session check
 
+@recommendation_routes.route('/api/prerequisite-names', methods=['GET'])
+def get_prerequisite_names():
+    try:
+        type_param = request.args.get("type")
+        if not type_param:
+            return jsonify({"error": "Missing type parameter"}), 400
+
+        # ✅ Map frontend value to DB value
+        type_map = {
+            "subject": "Subject",
+            "technical": "Technical Skill",
+            "non-technical": "Non-Technical Skill"
+        }
+
+        db_type = type_map.get(type_param.lower())
+        if not db_type:
+            return jsonify({"error": "Invalid type value."}), 400
+
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT id AS id, name AS name
+            FROM prerequisites
+            WHERE type = %s
+        """, (db_type,))
+
+        data = cursor.fetchall()
+        return jsonify(data), 200
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Server failed while fetching prerequisite names", "details": str(e)}), 500
+
+    finally:
+        if connection and connection.is_connected():
+            connection.close()
+            
 @recommendation_routes.route('/position/<int:position_id>', methods=['GET'])
 def get_position_details(position_id):
     connection = None
