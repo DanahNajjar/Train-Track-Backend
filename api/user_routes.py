@@ -156,16 +156,22 @@ def get_user_profile(user_id):
                 "user": {
                     "id": user_id,
                     "full_name": "Guest User",
-                    "email": None
+                    "email": None,
+                    "registration_date": None,
+                    "role": "guest"
                 },
                 "guest": True
             }), 200
 
-        # ✅ Handle real users (stored in DB)
+        # ✅ Handle real users from DB
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        cursor.execute("SELECT id, full_name, email FROM users WHERE id = %s", (user_id,))
+        cursor.execute("""
+            SELECT id, full_name, email, registration_date, role
+            FROM users
+            WHERE id = %s
+        """, (user_id,))
         user = cursor.fetchone()
 
         if not user:
