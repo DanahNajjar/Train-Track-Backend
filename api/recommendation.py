@@ -521,8 +521,19 @@ def user_input_summary():
             cursor.close()
             connection.close()
 
-@recommendation_routes.route('/fallback-prerequisites', methods=['POST'])
+from flask import request, jsonify, current_app  # Make sure current_app is imported
+
+@recommendation_routes.route('/fallback-prerequisites', methods=['POST', 'OPTIONS'])
 def get_fallback_prerequisites():
+    if request.method == 'OPTIONS':
+        # ✅ Handle CORS preflight (for browser security policy)
+        response = current_app.make_default_options_response()
+        response.headers.add("Access-Control-Allow-Origin", request.headers.get("Origin", "*"))
+        response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type")
+        response.headers.add("Access-Control-Allow-Credentials", "true")
+        return response
+
     try:
         data = request.get_json()
         subject_ids = set(data.get("subjects", []))
@@ -531,7 +542,7 @@ def get_fallback_prerequisites():
 
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
-        
+
         # Load prerequisite types
         cursor.execute("SELECT id, type FROM prerequisites")
         types = {int(row['id']): row['type'] for row in cursor.fetchall()}
