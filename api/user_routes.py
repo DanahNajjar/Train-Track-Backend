@@ -149,6 +149,19 @@ def save_user_results():
 @user_routes.route('/profile/<user_id>', methods=['GET'])
 def get_user_profile(user_id):
     try:
+        # ✅ Handle guest users
+        if user_id.startswith("guest_"):
+            return jsonify({
+                "success": True,
+                "user": {
+                    "id": user_id,
+                    "full_name": "Guest User",
+                    "email": None
+                },
+                "guest": True
+            }), 200
+
+        # ✅ Handle real users (stored in DB)
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
@@ -160,15 +173,16 @@ def get_user_profile(user_id):
 
         return jsonify({
             "success": True,
-            "user": user
+            "user": user,
+            "guest": False
         }), 200
 
     except Exception as e:
-        current_app.logger.error(f"❌ Error fetching user profile: {e}")
+        current_app.logger.error(f"❌ Error fetching profile: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
     finally:
-        if connection and connection.is_connected():
+        if 'connection' in locals() and connection and connection.is_connected():
             connection.close()
 
 @user_routes.route('/results/<int:trial_id>', methods=['DELETE'])
