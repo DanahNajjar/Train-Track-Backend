@@ -7,7 +7,7 @@ import google.oauth2.id_token
 user_routes = Blueprint('user_routes', __name__)
 
 # ✅ 1. Google Login
-@user_routes.route('/user/google-login', methods=['POST'])
+@user_routes.route('/google-login', methods=['POST'])
 def google_login():
     try:
         data = request.get_json()
