@@ -145,3 +145,50 @@ def save_user_results():
     finally:
         if connection and connection.is_connected():
             connection.close()
+
+@user_routes.route('/profile/<user_id>', methods=['GET'])
+def get_user_profile(user_id):
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        cursor.execute("SELECT id, full_name, email FROM users WHERE id = %s", (user_id,))
+        user = cursor.fetchone()
+
+        if not user:
+            return jsonify({"success": False, "message": "User not found"}), 404
+
+        return jsonify({
+            "success": True,
+            "user": user
+        }), 200
+
+    except Exception as e:
+        current_app.logger.error(f"❌ Error fetching user profile: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+    finally:
+        if connection and connection.is_connected():
+            connection.close()
+
+@user_routes.route('/results/<int:trial_id>', methods=['DELETE'])
+def delete_user_result(trial_id):
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        cursor.execute("DELETE FROM user_results WHERE id = %s", (trial_id,))
+        connection.commit()
+
+        if cursor.rowcount == 0:
+            return jsonify({"success": False, "message": "Result not found"}), 404
+
+        return jsonify({"success": True, "message": "✅ Trial deleted"}), 200
+
+    except Exception as e:
+        current_app.logger.error(f"❌ Error deleting result: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+    finally:
+        if connection and connection.is_connected():
+            connection.close()
