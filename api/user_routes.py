@@ -59,14 +59,15 @@ def google_login():
 
 
 # ✅ 2. Guest ID Generator
-@user_routes.route('/user/guest', methods=['GET'])
+@user_routes.route('/guest', methods=['GET'])
 def generate_guest_user():
     guest_id = f"guest_{uuid.uuid4().hex[:8]}"
     return jsonify({
         "success": True,
         "user_id": guest_id
     }), 200
-@user_routes.route('/user/results/<user_id>', methods=['GET'])
+    
+@user_routes.route('/results/<user_id>', methods=['GET'])
 def get_user_results(user_id):
     try:
         connection = get_db_connection()
