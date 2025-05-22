@@ -38,6 +38,7 @@ def get_fit_level(score, base):
 
 @recommendation_routes.route('/', methods=['POST'])
 def get_recommendations():
+
     current_app.logger.info("🔥 /recommendations route HIT")
     current_app.logger.info("🚀 Starting recommendation processing...")
 
