@@ -95,3 +95,34 @@ def get_user_results(user_id):
     finally:
         if connection and connection.is_connected():
             connection.close()
+
+@user_routes.route('/results', methods=['POST'])
+def save_user_results():
+    try:
+        data = request.get_json()
+        user_id = data.get("user_id")
+        submission_data = data.get("submission_data")
+        result_data = data.get("result_data")
+
+        if not user_id or not submission_data or not result_data:
+            return jsonify({"success": False, "message": "Missing required fields."}), 400
+
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            INSERT INTO user_results (user_id, submission_data, result_data)
+            VALUES (%s, %s, %s)
+        """, (user_id, submission_data, result_data))
+
+        connection.commit()
+
+        return jsonify({"success": True, "message": "User result saved successfully."}), 200
+
+    except Exception as e:
+        current_app.logger.error(f"❌ Error saving user result: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+    finally:
+        if connection and connection.is_connected():
+            connection.close()
