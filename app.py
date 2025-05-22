@@ -1,4 +1,5 @@
 from flask import Flask, send_from_directory 
+from api.recommendation import get_fallback_prerequisites
 from flask_cors import CORS
 import os
 import logging
@@ -65,3 +66,7 @@ if os.getenv("FLASK_ENV") != "production":
 # ✅ Run local server
 if __name__ == '__main__':
     app.run(debug=True)
+
+@app.route('/fallback-prerequisites', methods=['POST'])
+def fallback_direct():
+    return get_fallback_prerequisites()
