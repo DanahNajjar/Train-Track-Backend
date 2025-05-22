@@ -32,9 +32,12 @@ CORS(app, resources={
     r"/wizard/*": {"origins": FRONTEND_ORIGINS},
     r"/position/*": {"origins": FRONTEND_ORIGINS},
     r"/recommendations*": {"origins": FRONTEND_ORIGINS},
+    r"/recommendations/fallback-prerequisites": {"origins": FRONTEND_ORIGINS},
+    r"/api/prerequisite-names": {"origins": FRONTEND_ORIGINS},
     r"/companies-for-positions": {"origins": FRONTEND_ORIGINS},
-    r"/user-input-summary": {"origins": FRONTEND_ORIGINS}  # ✅ Added to fix the issue!
+    r"/user-input-summary": {"origins": FRONTEND_ORIGINS}
 }, supports_credentials=True)
+
 
 # ✅ Import & register blueprints
 from api.wizard_routes import wizard_routes
