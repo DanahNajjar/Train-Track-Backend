@@ -41,7 +41,6 @@ def get_recommendations():
 
     data = request.get_json()
 
-    # ✅ Extract user_id from frontend (guest ID or real account)
     user_id = data.get("user_id", "guest_unknown")
     current_app.logger.info(f"🧾 User ID for saving: {user_id}")
 
@@ -152,14 +151,17 @@ def get_recommendations():
 
             fit_level = get_fit_level(matched_weight, base)
 
+            # ✅ NEW: Replace match_score_percentage with better visual % (0–100)
+            visual_score = round(min((matched_weight / base / 1.5) * 100, 100), 2)
+
             current_app.logger.info(
                 f"🧮 Position: {pos['position_name']} | Matched: {matched_weight} | "
-                f"Total: {total_weight} | Min Fit: {base} | Fit Level: {fit_level}"
+                f"Total: {total_weight} | Min Fit: {base} | Fit Level: {fit_level} | UI Match %: {visual_score}"
             )
 
             results.append({
                 "fit_level": fit_level,
-                "match_score_percentage": round((matched_weight / total_weight) * 100, 2),
+                "match_score_percentage": visual_score,  # ✅ FRONTEND FRIENDLY
                 "position_id": pid,
                 "position_name": pos["position_name"],
                 "subject_fit_percentage": round((matched["subjects"] / total["subjects"]) * 100, 2) if total["subjects"] else 0,
@@ -179,7 +181,6 @@ def get_recommendations():
         fallbacks = [r for r in results if r["fit_level"] == "Fallback"]
         no_matches = [r for r in results if r["fit_level"] == "No Match"]
 
-        # ✅ Build result data to save
         recommendation_result = {
             "results": results,
             "fallback_triggered": bool(fallbacks),
@@ -187,7 +188,6 @@ def get_recommendations():
             "filters": company_filter_ids
         }
 
-        # ✅ Save to database
         try:
             cursor.execute("""
                 INSERT INTO user_results (user_id, submission_data, result_data)
@@ -202,7 +202,6 @@ def get_recommendations():
         except Exception as save_err:
             current_app.logger.error(f"❌ Failed to save result: {save_err}")
 
-        # ✅ Return results (your logic unchanged)
         if perfect_matches:
             return jsonify({
                 "success": True,
