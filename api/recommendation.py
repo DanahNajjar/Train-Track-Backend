@@ -564,11 +564,13 @@ def get_fallback_prerequisites():
                     "non_technical_skills": []
                 }
 
-            positions[pid][{
+            category_key = {
                 "Subject": "subjects",
                 "Technical Skill": "technical_skills",
                 "Non-Technical Skill": "non_technical_skills"
-            }[type_]].append((preq_id, weight))
+            }[type_]
+
+            positions[pid][category_key].append((preq_id, weight))
 
         # Identify fallback-only positions
         fallback_positions = []
@@ -610,15 +612,52 @@ def get_fallback_prerequisites():
         missing_tech_skills = [pid_ for pid_, _ in top_pos["technical_skills"] if pid_ not in tech_skills]
         missing_non_tech_skills = [pid_ for pid_, _ in top_pos["non_technical_skills"] if pid_ not in non_tech_skills]
 
+        # ✅ Fetch names for missing prerequisites
+        def build_in_clause(ids):
+            return ','.join(['%s'] * len(ids)), tuple(ids)
+
+        all_missing_ids = missing_subjects + missing_tech_skills + missing_non_tech_skills
+        if not all_missing_ids:
+            return jsonify({
+                "success": True,
+                "position_id": top_pid,
+                "position_name": top_pos["position_name"],
+                "missing_prerequisites": {
+                    "subjects": [],
+                    "technical_skills": [],
+                    "non_technical_skills": []
+                }
+            }), 200
+
+        format_strings, all_params = build_in_clause(all_missing_ids)
+        cursor.execute(f"""
+            SELECT id, name, type
+            FROM prerequisites
+            WHERE id IN ({format_strings})
+        """, all_params)
+
+        named_results = cursor.fetchall()
+
+        # Organize by type
+        categorized = {
+            "subjects": [],
+            "technical_skills": [],
+            "non_technical_skills": []
+        }
+
+        for row in named_results:
+            if row["type"] == "Subject":
+                categorized["subjects"].append({"id": row["id"], "name": row["name"]})
+            elif row["type"] == "Technical Skill":
+                categorized["technical_skills"].append({"id": row["id"], "name": row["name"]})
+            elif row["type"] == "Non-Technical Skill":
+                categorized["non_technical_skills"].append({"id": row["id"], "name": row["name"]})
+
         return jsonify({
             "success": True,
             "position_id": top_pid,
             "position_name": top_pos["position_name"],
-            "missing_prerequisites": {
-                "subjects": missing_subjects,
-                "technical_skills": missing_tech_skills,
-                "non_technical_skills": missing_non_tech_skills
-            }
+            "missing_prerequisites": categorized
         }), 200
 
     except Exception as e:
@@ -627,7 +666,7 @@ def get_fallback_prerequisites():
         return jsonify({"success": False, "message": str(e)}), 500
 
     finally:
-        if connection.is_connected():
+        if connection and connection.is_connected():
             connection.close()
 
 DEBUG_BYPASS_SESSION = True  # ✅ Enables access to position details without session check
