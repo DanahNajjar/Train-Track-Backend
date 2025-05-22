@@ -39,9 +39,11 @@ CORS(app, resources={
 # ✅ Import & register blueprints
 from api.wizard_routes import wizard_routes
 from api.recommendation import recommendation_routes
+from api.user_routes import user_routes  # ✅ Add this
 
 app.register_blueprint(wizard_routes, url_prefix='/wizard')
 app.register_blueprint(recommendation_routes)
+app.register_blueprint(user_routes, url_prefix='/user')  # ✅ And this
 
 # ✅ Health check route
 @app.route('/')
