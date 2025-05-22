@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, current_app
 from api.db import get_db_connection
 import uuid
+import json  
 import google.auth.transport.requests
 import google.oauth2.id_token
 
@@ -98,30 +99,48 @@ def get_user_results(user_id):
 
 @user_routes.route('/results', methods=['POST'])
 def save_user_results():
+    connection = None
     try:
         data = request.get_json()
+
+        # ✅ Extract values
         user_id = data.get("user_id")
         submission_data = data.get("submission_data")
         result_data = data.get("result_data")
 
+        # ✅ Validate
         if not user_id or not submission_data or not result_data:
-            return jsonify({"success": False, "message": "Missing required fields."}), 400
+            return jsonify({
+                "success": False,
+                "message": "Missing user_id, submission_data or result_data"
+            }), 400
 
+        # ✅ Convert Python dicts/lists to JSON strings
+        submission_json = json.dumps(submission_data)
+        result_json = json.dumps(result_data)
+
+        # ✅ Connect and insert
         connection = get_db_connection()
         cursor = connection.cursor()
 
         cursor.execute("""
             INSERT INTO user_results (user_id, submission_data, result_data)
             VALUES (%s, %s, %s)
-        """, (user_id, submission_data, result_data))
+        """, (user_id, submission_json, result_json))
 
         connection.commit()
 
-        return jsonify({"success": True, "message": "User result saved successfully."}), 200
+        return jsonify({
+            "success": True,
+            "message": "✅ Result saved successfully"
+        }), 200
 
     except Exception as e:
         current_app.logger.error(f"❌ Error saving user result: {e}")
-        return jsonify({"success": False, "message": str(e)}), 500
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
 
     finally:
         if connection and connection.is_connected():
