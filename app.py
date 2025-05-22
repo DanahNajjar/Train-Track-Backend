@@ -32,6 +32,7 @@ CORS(app, resources={
     r"/wizard/*": {"origins": FRONTEND_ORIGINS},
     r"/position/*": {"origins": FRONTEND_ORIGINS},
     r"/recommendations/*": {"origins": FRONTEND_ORIGINS},  # ✅ Fix here
+    r"/fallback-prerequisites": {"origins": FRONTEND_ORIGINS},  # ✅ Add this
     r"/api/prerequisite-names": {"origins": FRONTEND_ORIGINS},
     r"/companies-for-positions": {"origins": FRONTEND_ORIGINS},
     r"/user-input-summary": {"origins": FRONTEND_ORIGINS}

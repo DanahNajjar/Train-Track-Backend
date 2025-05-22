@@ -521,8 +521,6 @@ def user_input_summary():
             cursor.close()
             connection.close()
 
-from flask import request, jsonify, current_app  # Make sure current_app is imported
-
 @recommendation_routes.route('/fallback-prerequisites', methods=['POST', 'OPTIONS'])
 def get_fallback_prerequisites():
     if request.method == 'OPTIONS':
