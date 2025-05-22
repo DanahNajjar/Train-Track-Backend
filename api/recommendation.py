@@ -521,7 +521,7 @@ def user_input_summary():
             cursor.close()
             connection.close()
 
-@recommendation_routes.route('/recommendations/fallback-prerequisites', methods=['POST'])
+@recommendation_routes.route('/fallback-prerequisites', methods=['POST'])
 def get_fallback_prerequisites():
     try:
         data = request.get_json()
