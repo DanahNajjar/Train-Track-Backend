@@ -130,16 +130,27 @@ def get_recommendations():
         results = []
 
         for pid, pos in positions.items():
+            subject_ids = {int(x) for x in subject_ids}
+            tech_skills = {int(x) for x in tech_skills}
+            non_tech_skills = {int(x) for x in non_tech_skills}
+
+            matched_subjects = [(pid_, w) for pid_, w in pos["subjects"] if pid_ in subject_ids]
+            matched_techs = [(pid_, w) for pid_, w in pos["technical_skills"] if pid_ in tech_skills]
+            matched_nontechs = [(pid_, w) for pid_, w in pos["non_technical_skills"] if pid_ in non_tech_skills]
+
+            subject_fit_percentage = round((len(matched_subjects) / len(pos["subjects"])) * 100, 2) if pos["subjects"] else 0
+            technical_fit_percentage = round((len(matched_techs) / len(pos["technical_skills"])) * 100, 2) if pos["technical_skills"] else 0
+            nontech_fit_percentage = round((len(matched_nontechs) / len(pos["non_technical_skills"])) * 100, 2) if pos["non_technical_skills"] else 0
+
             total = {
                 "subjects": sum(w for _, w in pos["subjects"]),
                 "technical_skills": sum(w for _, w in pos["technical_skills"]),
                 "non_technical_skills": sum(w for _, w in pos["non_technical_skills"])
             }
-
             matched = {
-                "subjects": sum(w for pid_, w in pos["subjects"] if pid_ in subject_ids),
-                "technical_skills": sum(w for pid_, w in pos["technical_skills"] if pid_ in tech_skills),
-                "non_technical_skills": sum(w for pid_, w in pos["non_technical_skills"] if pid_ in non_tech_skills)
+                "subjects": sum(w for _, w in matched_subjects),
+                "technical_skills": sum(w for _, w in matched_techs),
+                "non_technical_skills": sum(w for _, w in matched_nontechs)
             }
 
             total_weight = sum(total.values())
@@ -154,11 +165,10 @@ def get_recommendations():
 
             fit_level = get_fit_level(matched_weight, base)
             visual_score = round(min((matched_weight / base / 1.5) * 100, 100), 2)
-            # ✅ Log fallback promotion info
-            current_app.logger.info(f"⬆️ Was fallback promoted: {is_fallback and pid in previous_fallback_ids}")
 
+            current_app.logger.info(f"⬆️ Was fallback promoted: {is_fallback and pid in previous_fallback_ids}")
             current_app.logger.info(
-                f"🧮 Position: {pos['position_name']} | Matched: {matched_weight} | "
+                f"🧾 Position: {pos['position_name']} | Matched: {matched_weight} | "
                 f"Total: {total_weight} | Min Fit: {base} | Fit Level: {fit_level} | UI Match %: {visual_score}"
             )
 
@@ -167,9 +177,9 @@ def get_recommendations():
                 "match_score_percentage": visual_score,
                 "position_id": pid,
                 "position_name": pos["position_name"],
-                "subject_fit_percentage": round((matched["subjects"] / total["subjects"]) * 100, 2) if total["subjects"] else 0,
-                "technical_skill_fit_percentage": round((matched["technical_skills"] / total["technical_skills"]) * 100, 2) if total["technical_skills"] else 0,
-                "non_technical_skill_fit_percentage": round((matched["non_technical_skills"] / total["non_technical_skills"]) * 100, 2) if total["non_technical_skills"] else 0,
+                "subject_fit_percentage": subject_fit_percentage,
+                "technical_skill_fit_percentage": technical_fit_percentage,
+                "non_technical_skill_fit_percentage": nontech_fit_percentage,
                 "was_promoted_from_fallback": is_fallback and pid in previous_fallback_ids,
                 "matched_weight": matched_weight,
                 "min_fit_score": base,
@@ -201,7 +211,7 @@ def get_recommendations():
                 json.dumps(recommendation_result)
             ))
             connection.commit()
-            current_app.logger.info("💾 Trial saved to user_results.")
+            current_app.logger.info("📂 Trial saved to user_results.")
         except Exception as save_err:
             current_app.logger.error(f"❌ Failed to save result: {save_err}")
 
