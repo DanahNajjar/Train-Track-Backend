@@ -521,7 +521,7 @@ def user_input_summary():
             cursor.close()
             connection.close()
 
-@recommendation_routes.route('/recommendations/fallback-prerequisites', methods=['POST', 'OPTIONS'])
+@recommendation_routes.route('/fallback-prerequisites', methods=['POST', 'OPTIONS'])
 def get_fallback_prerequisites():
     if request.method == 'OPTIONS':
         # ✅ Handle CORS preflight (for browser security policy)
