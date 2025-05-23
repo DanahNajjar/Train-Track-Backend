@@ -154,6 +154,8 @@ def get_recommendations():
 
             fit_level = get_fit_level(matched_weight, base)
             visual_score = round(min((matched_weight / base / 1.5) * 100, 100), 2)
+            # ✅ Log fallback promotion info
+            current_app.logger.info(f"⬆️ Was fallback promoted: {is_fallback and pid in previous_fallback_ids}")
 
             current_app.logger.info(
                 f"🧮 Position: {pos['position_name']} | Matched: {matched_weight} | "
@@ -168,7 +170,7 @@ def get_recommendations():
                 "subject_fit_percentage": round((matched["subjects"] / total["subjects"]) * 100, 2) if total["subjects"] else 0,
                 "technical_skill_fit_percentage": round((matched["technical_skills"] / total["technical_skills"]) * 100, 2) if total["technical_skills"] else 0,
                 "non_technical_skill_fit_percentage": round((matched["non_technical_skills"] / total["non_technical_skills"]) * 100, 2) if total["non_technical_skills"] else 0,
-                "was_promoted_from_fallback": pid in previous_fallback_ids and fit_level != "Fallback",
+                "was_promoted_from_fallback": is_fallback and pid in previous_fallback_ids,
                 "matched_weight": matched_weight,
                 "min_fit_score": base,
                 "fit_ratio": round(matched_weight / base * 100, 2)
@@ -232,7 +234,7 @@ def get_recommendations():
                 "fallback_triggered": True,
                 "was_fallback_promoted": False,
                 "recommended_positions": fallbacks,
-                "should_fetch_companies": has_preferences,
+                "should_fetch_companies": has_preferences or is_fallback,
                 "company_filter_ids": company_filter_ids
             }), 200
 
