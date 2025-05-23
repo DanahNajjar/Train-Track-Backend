@@ -28,15 +28,14 @@ FRONTEND_ORIGINS = [
     "https://train-track-frontend.onrender.com"
 ]
 
-# ✅ Enable CORS for needed routes
 CORS(app, resources={
     r"/wizard/*": {"origins": FRONTEND_ORIGINS},
     r"/position/*": {"origins": FRONTEND_ORIGINS},
-    r"/recommendations/*": {"origins": FRONTEND_ORIGINS},
-    r"/fallback-prerequisites": {"origins": FRONTEND_ORIGINS},
+    r"/recommendations/*": {"origins": FRONTEND_ORIGINS},  # ✅ This already includes /recommendations/fallback-prerequisites
     r"/api/prerequisite-names": {"origins": FRONTEND_ORIGINS},
     r"/companies-for-positions": {"origins": FRONTEND_ORIGINS},
-    r"/user-input-summary": {"origins": FRONTEND_ORIGINS}
+    r"/user-input-summary": {"origins": FRONTEND_ORIGINS},
+    r"/fallback-prerequisites": {"origins": FRONTEND_ORIGINS}  # ✅ Optional — keep if this route also exists outside /recommendations/
 }, supports_credentials=True)
 
 # ✅ Register blueprints
@@ -47,11 +46,6 @@ from api.user_routes import user_routes
 app.register_blueprint(wizard_routes, url_prefix='/wizard')
 app.register_blueprint(recommendation_routes)
 app.register_blueprint(user_routes, url_prefix='/user')
-
-# ✅ Direct access route for fallback (if needed)
-@app.route('/fallback-prerequisites', methods=['POST'])
-def fallback_direct():
-    return get_fallback_prerequisites()
 
 # ✅ Health Check
 @app.route('/')
