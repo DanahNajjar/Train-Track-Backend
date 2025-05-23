@@ -35,7 +35,6 @@ def get_fit_level(score, base):
     else:
         return "Perfect Match"
 
-
 @recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
     current_app.logger.info("🔥 /recommendations route HIT")
@@ -63,11 +62,15 @@ def get_recommendations():
         was_fallback_promoted = False
 
         advanced_preferences = data.get("advanced_preferences", {})
+
+        def is_nonempty_list(value):
+            return isinstance(value, list) and len(value) > 0
+
         has_preferences = any([
-            advanced_preferences.get("training_modes"),
-            advanced_preferences.get("company_sizes"),
-            advanced_preferences.get("industries"),
-            advanced_preferences.get("company_culture")
+            is_nonempty_list(advanced_preferences.get("training_modes")),
+            is_nonempty_list(advanced_preferences.get("company_sizes")),
+            is_nonempty_list(advanced_preferences.get("industries")),
+            is_nonempty_list(advanced_preferences.get("company_culture"))
         ])
 
         company_filter_ids = {
@@ -86,11 +89,9 @@ def get_recommendations():
         if error:
             return jsonify({"success": False, "message": error}), 400
 
-        # Load types
         cursor.execute("SELECT id, type FROM prerequisites")
         types = {int(row['id']): row['type'] for row in cursor.fetchall()}
 
-        # Load position-prerequisite mapping
         cursor.execute("""
             SELECT pp.position_id, pp.prerequisite_id, pp.weight,
                    p.name AS position_name, p.min_fit_score
@@ -152,8 +153,6 @@ def get_recommendations():
                 continue
 
             fit_level = get_fit_level(matched_weight, base)
-
-            # ✅ NEW: Replace match_score_percentage with better visual % (0–100)
             visual_score = round(min((matched_weight / base / 1.5) * 100, 100), 2)
 
             current_app.logger.info(
@@ -163,7 +162,7 @@ def get_recommendations():
 
             results.append({
                 "fit_level": fit_level,
-                "match_score_percentage": visual_score,  # ✅ FRONTEND FRIENDLY
+                "match_score_percentage": visual_score,
                 "position_id": pid,
                 "position_name": pos["position_name"],
                 "subject_fit_percentage": round((matched["subjects"] / total["subjects"]) * 100, 2) if total["subjects"] else 0,
@@ -267,6 +266,7 @@ def get_recommendations():
     finally:
         if 'connection' in locals() and connection.is_connected():
             connection.close()
+
 
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
