@@ -1,6 +1,6 @@
 from flask import Flask, send_from_directory
 from flask_cors import CORS
-from api.recommendation import get_fallback_prerequisites
+from api.recommendation import recommendation_routes  # ✅ CORRECT
 import os
 import logging
 
