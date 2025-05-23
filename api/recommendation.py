@@ -232,7 +232,9 @@ def get_recommendations():
                 "success": True,
                 "fallback_possible": True,
                 "fallback_triggered": True,
-                "was_fallback_promoted": False,
+                "was_fallback_promoted": is_fallback and any(
+                    r["position_id"] in previous_fallback_ids and r["fit_level"] != "Fallback"
+                    for r in results),
                 "recommended_positions": fallbacks,
                 "should_fetch_companies": has_preferences or is_fallback,
                 "company_filter_ids": company_filter_ids
