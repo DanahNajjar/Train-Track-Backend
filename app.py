@@ -28,15 +28,8 @@ FRONTEND_ORIGINS = [
     "https://train-track-frontend.onrender.com"
 ]
 
-CORS(app, resources={
-    r"/wizard/*": {"origins": FRONTEND_ORIGINS},
-    r"/position/*": {"origins": FRONTEND_ORIGINS},
-    r"/recommendations/*": {"origins": FRONTEND_ORIGINS},  # ✅ This already includes /recommendations/fallback-prerequisites
-    r"/api/prerequisite-names": {"origins": FRONTEND_ORIGINS},
-    r"/companies-for-positions": {"origins": FRONTEND_ORIGINS},
-    r"/user-input-summary": {"origins": FRONTEND_ORIGINS},
-    r"/fallback-prerequisites": {"origins": FRONTEND_ORIGINS}  # ✅ Optional — keep if this route also exists outside /recommendations/
-}, supports_credentials=True)
+# ✅ Enable CORS globally for all routes and preflight requests
+CORS(app, supports_credentials=True, resources={r"/*": {"origins": FRONTEND_ORIGINS}})
 
 # ✅ Register blueprints
 from api.wizard_routes import wizard_routes
