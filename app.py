@@ -66,7 +66,3 @@ if os.getenv("FLASK_ENV") != "production":
 # ✅ Run local server
 if __name__ == '__main__':
     app.run(debug=True)
-
-@app.route('/fallback-prerequisites', methods=['POST'])
-def fallback_direct():
-    return get_fallback_prerequisites()
