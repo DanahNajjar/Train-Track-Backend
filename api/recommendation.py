@@ -718,6 +718,10 @@ def get_prerequisite_names():
     finally:
         if connection and connection.is_connected():
             connection.close()
+
+@recommendation_routes.route('/recommendations/fallback-test', methods=['GET'])
+def fallback_test():
+    return jsonify({"success": True, "message": "Fallback test works ✅"}), 200
             
 @recommendation_routes.route('/position/<int:position_id>', methods=['GET'])
 def get_position_details(position_id):
