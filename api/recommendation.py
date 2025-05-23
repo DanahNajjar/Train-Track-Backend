@@ -138,9 +138,9 @@ def get_recommendations():
             matched_techs = [(pid_, w) for pid_, w in pos["technical_skills"] if pid_ in tech_skills]
             matched_nontechs = [(pid_, w) for pid_, w in pos["non_technical_skills"] if pid_ in non_tech_skills]
 
-            subject_fit_percentage = round((len(matched_subjects) / len(pos["subjects"])) * 100, 2) if pos["subjects"] else 0
-            technical_fit_percentage = round((len(matched_techs) / len(pos["technical_skills"])) * 100, 2) if pos["technical_skills"] else 0
-            nontech_fit_percentage = round((len(matched_nontechs) / len(pos["non_technical_skills"])) * 100, 2) if pos["non_technical_skills"] else 0
+            subject_fit_percentage = min(len(matched_subjects) * 10, 100)
+            technical_fit_percentage = min(len(matched_techs) * 10, 100)
+            nontech_fit_percentage = min(len(matched_nontechs) * 10, 100)
 
             total = {
                 "subjects": sum(w for _, w in pos["subjects"]),
@@ -280,6 +280,7 @@ def get_recommendations():
     finally:
         if 'connection' in locals() and connection.is_connected():
             connection.close()
+
 
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
