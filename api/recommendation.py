@@ -125,25 +125,36 @@ def get_recommendations():
                 "Non-Technical Skill": "non_technical_skills"
             }[type_]
 
-            positions[pid][category].append(preq_id)
+            positions[pid][category].append((preq_id, weight))
 
         results = []
 
         for pid, pos in positions.items():
-            subject_ids = {int(x) for x in subject_ids}
-            tech_skills = {int(x) for x in tech_skills}
-            non_tech_skills = {int(x) for x in non_tech_skills}
+            total = {
+                "subjects": len(pos["subjects"]),
+                "technical_skills": len(pos["technical_skills"]),
+                "non_technical_skills": len(pos["non_technical_skills"])
+            }
 
-            matched_subjects = [pid_ for pid_ in pos["subjects"] if pid_ in subject_ids]
-            matched_techs = [pid_ for pid_ in pos["technical_skills"] if pid_ in tech_skills]
-            matched_nontechs = [pid_ for pid_ in pos["non_technical_skills"] if pid_ in non_tech_skills]
+            matched = {
+                "subjects": len([1 for pid_, _ in pos["subjects"] if pid_ in subject_ids]),
+                "technical_skills": len([1 for pid_, _ in pos["technical_skills"] if pid_ in tech_skills]),
+                "non_technical_skills": len([1 for pid_, _ in pos["non_technical_skills"] if pid_ in non_tech_skills])
+            }
 
-            subject_fit_percentage = round((len(matched_subjects) / len(pos["subjects"])) * 100, 2) if pos["subjects"] else 0
-            technical_fit_percentage = round((len(matched_techs) / len(pos["technical_skills"])) * 100, 2) if pos["technical_skills"] else 0
-            nontech_fit_percentage = round((len(matched_nontechs) / len(pos["non_technical_skills"])) * 100, 2) if pos["non_technical_skills"] else 0
+            weighted_total = {
+                "subjects": sum(w for _, w in pos["subjects"]),
+                "technical_skills": sum(w for _, w in pos["technical_skills"]),
+                "non_technical_skills": sum(w for _, w in pos["non_technical_skills"])
+            }
+            weighted_matched = {
+                "subjects": sum(w for pid_, w in pos["subjects"] if pid_ in subject_ids),
+                "technical_skills": sum(w for pid_, w in pos["technical_skills"] if pid_ in tech_skills),
+                "non_technical_skills": sum(w for pid_, w in pos["non_technical_skills"] if pid_ in non_tech_skills)
+            }
 
-            total_weight = len(pos["subjects"]) + len(pos["technical_skills"]) + len(pos["non_technical_skills"])
-            matched_weight = len(matched_subjects) + len(matched_techs) + len(matched_nontechs)
+            total_weight = sum(weighted_total.values())
+            matched_weight = sum(weighted_matched.values())
 
             if total_weight == 0 or matched_weight == 0:
                 continue
@@ -155,16 +166,18 @@ def get_recommendations():
             fit_level = get_fit_level(matched_weight, base)
             visual_score = round(min((matched_weight / base / 1.5) * 100, 100), 2)
 
-            current_app.logger.info(f"🧾 Position: {pos['position_name']} | Matched Count: {matched_weight} | Total Req: {total_weight} | Fit Level: {fit_level} | Visual %: {visual_score}")
+            current_app.logger.info(
+                f"🧮 Position: {pos['position_name']} | Matched: {matched_weight} | Total: {total_weight} | Min Fit: {base} | Fit Level: {fit_level} | UI Match %: {visual_score}"
+            )
 
             results.append({
                 "fit_level": fit_level,
                 "match_score_percentage": visual_score,
                 "position_id": pid,
                 "position_name": pos["position_name"],
-                "subject_fit_percentage": subject_fit_percentage,
-                "technical_skill_fit_percentage": technical_fit_percentage,
-                "non_technical_skill_fit_percentage": nontech_fit_percentage,
+                "subject_fit_percentage": round((matched["subjects"] / total["subjects"]) * 100, 2) if total["subjects"] else 0,
+                "technical_skill_fit_percentage": round((matched["technical_skills"] / total["technical_skills"]) * 100, 2) if total["technical_skills"] else 0,
+                "non_technical_skill_fit_percentage": round((matched["non_technical_skills"] / total["non_technical_skills"]) * 100, 2) if total["non_technical_skills"] else 0,
                 "was_promoted_from_fallback": is_fallback and pid in previous_fallback_ids,
                 "matched_weight": matched_weight,
                 "min_fit_score": base,
@@ -196,23 +209,70 @@ def get_recommendations():
                 json.dumps(recommendation_result)
             ))
             connection.commit()
+            current_app.logger.info("💾 Trial saved to user_results.")
         except Exception as save_err:
             current_app.logger.error(f"❌ Failed to save result: {save_err}")
 
         if perfect_matches:
-            return jsonify({"success": True, "recommended_positions": [perfect_matches[0]], "fallback_triggered": False}), 200
-        elif strong_matches:
-            return jsonify({"success": True, "recommended_positions": strong_matches, "fallback_triggered": False}), 200
-        elif fallbacks:
-            return jsonify({"success": True, "recommended_positions": fallbacks, "fallback_triggered": True}), 200
-        elif no_matches:
-            return jsonify({"success": True, "recommended_positions": no_matches, "fallback_triggered": False}), 200
+            return jsonify({
+                "success": True,
+                "fallback_possible": False,
+                "fallback_triggered": False,
+                "was_fallback_promoted": False,
+                "recommended_positions": [perfect_matches[0]],
+                "should_fetch_companies": has_preferences,
+                "company_filter_ids": company_filter_ids
+            }), 200
 
-        return jsonify({"success": True, "recommended_positions": [], "fallback_triggered": False}), 200
+        elif strong_matches:
+            return jsonify({
+                "success": True,
+                "fallback_possible": False,
+                "fallback_triggered": False,
+                "was_fallback_promoted": False,
+                "recommended_positions": strong_matches,
+                "should_fetch_companies": has_preferences,
+                "company_filter_ids": company_filter_ids
+            }), 200
+
+        elif fallbacks:
+            return jsonify({
+                "success": True,
+                "fallback_possible": True,
+                "fallback_triggered": True,
+                "was_fallback_promoted": is_fallback and any(
+                    r["position_id"] in previous_fallback_ids and r["fit_level"] != "Fallback"
+                    for r in results),
+                "recommended_positions": fallbacks,
+                "should_fetch_companies": has_preferences or is_fallback,
+                "company_filter_ids": company_filter_ids
+            }), 200
+
+        elif no_matches:
+            return jsonify({
+                "success": True,
+                "fallback_possible": False,
+                "fallback_triggered": False,
+                "was_fallback_promoted": False,
+                "recommended_positions": no_matches,
+                "should_fetch_companies": has_preferences,
+                "company_filter_ids": company_filter_ids
+            }), 200
+
+        return jsonify({
+            "success": True,
+            "fallback_possible": False,
+            "fallback_triggered": False,
+            "was_fallback_promoted": False,
+            "recommended_positions": [],
+            "should_fetch_companies": has_preferences,
+            "company_filter_ids": company_filter_ids
+        }), 200
 
     except Exception as e:
         import traceback
         traceback.print_exc()
+        current_app.logger.error(f"❌ Error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
     finally:
