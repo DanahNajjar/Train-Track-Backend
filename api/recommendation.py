@@ -35,7 +35,7 @@ def get_fit_level(score, base):
     else:
         return "Perfect Match"
 
-@recommendation_routes.route('/recommendations', methods=['POST']) 
+@recommendation_routes.route('/recommendations', methods=['POST'])
 def get_recommendations():
     current_app.logger.info("🔥 /recommendations route HIT")
     current_app.logger.info("🚀 Starting recommendation processing...")
@@ -81,7 +81,7 @@ def get_recommendations():
         }
 
         current_app.logger.info(f"📘 Subjects: {subject_ids}")
-        current_app.logger.info(f"🚰 Tech Skills: {tech_skills}")
+        current_app.logger.info(f"💠 Tech Skills: {tech_skills}")
         current_app.logger.info(f"🧠 Non-Tech Skills: {non_tech_skills}")
 
         is_fallback = bool(data.get("is_fallback", False)) or bool(previous_fallback_ids)
@@ -131,9 +131,15 @@ def get_recommendations():
 
         for pid, pos in positions.items():
             matched_counts = {
-                "subjects": len([1 for pid_, _ in pos["subjects"] if pid_ in subject_ids]),
-                "technical_skills": len([1 for pid_, _ in pos["technical_skills"] if pid_ in tech_skills]),
-                "non_technical_skills": len([1 for pid_, _ in pos["non_technical_skills"] if pid_ in non_tech_skills])
+                "subjects": len(set(pid_ for pid_, _ in pos["subjects"] if pid_ in subject_ids)),
+                "technical_skills": len(set(pid_ for pid_, _ in pos["technical_skills"] if pid_ in tech_skills)),
+                "non_technical_skills": len(set(pid_ for pid_, _ in pos["non_technical_skills"] if pid_ in non_tech_skills))
+            }
+
+            total_counts = {
+                "subjects": len(set(pid_ for pid_, _ in pos["subjects"])),
+                "technical_skills": len(set(pid_ for pid_, _ in pos["technical_skills"])),
+                "non_technical_skills": len(set(pid_ for pid_, _ in pos["non_technical_skills"]))
             }
 
             weighted_total = {
@@ -161,7 +167,7 @@ def get_recommendations():
             visual_score = round(min((matched_weight / base / 1.5) * 100, 100), 2)
 
             current_app.logger.info(
-                f"🧦 Position: {pos['position_name']} | Matched: {matched_weight} | Total: {total_weight} | Min Fit: {base} | Fit Level: {fit_level} | UI Match %: {visual_score}"
+                f"🧶 Position: {pos['position_name']} | Matched: {matched_weight} | Total: {total_weight} | Min Fit: {base} | Fit Level: {fit_level} | UI Match %: {visual_score}"
             )
 
             results.append({
@@ -169,9 +175,9 @@ def get_recommendations():
                 "match_score_percentage": visual_score,
                 "position_id": pid,
                 "position_name": pos["position_name"],
-                "subject_fit_percentage": round((matched_counts["subjects"] / len(pos["subjects"]) * 100), 2) if len(pos["subjects"]) else 0,
-                "technical_skill_fit_percentage": round((matched_counts["technical_skills"] / len(pos["technical_skills"]) * 100), 2) if len(pos["technical_skills"]) else 0,
-                "non_technical_skill_fit_percentage": round((matched_counts["non_technical_skills"] / len(pos["non_technical_skills"]) * 100), 2) if len(pos["non_technical_skills"]) else 0,
+                "subject_fit_percentage": round((matched_counts["subjects"] / total_counts["subjects"] * 100), 2) if total_counts["subjects"] else 0,
+                "technical_skill_fit_percentage": round((matched_counts["technical_skills"] / total_counts["technical_skills"] * 100), 2) if total_counts["technical_skills"] else 0,
+                "non_technical_skill_fit_percentage": round((matched_counts["non_technical_skills"] / total_counts["non_technical_skills"] * 100), 2) if total_counts["non_technical_skills"] else 0,
                 "was_promoted_from_fallback": is_fallback and pid in previous_fallback_ids,
                 "matched_weight": matched_weight,
                 "min_fit_score": base,
