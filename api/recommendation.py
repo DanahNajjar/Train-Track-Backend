@@ -43,7 +43,7 @@ def get_recommendations():
     data = request.get_json()
 
     user_id = data.get("user_id", "guest_unknown")
-    current_app.logger.info(f"🧾 User ID for saving: {user_id}")
+    current_app.logger.info(f"📟 User ID for saving: {user_id}")
 
     if isinstance(data.get("subjects"), str):
         try:
@@ -81,7 +81,7 @@ def get_recommendations():
         }
 
         current_app.logger.info(f"📘 Subjects: {subject_ids}")
-        current_app.logger.info(f"🛠️ Tech Skills: {tech_skills}")
+        current_app.logger.info(f"🚰 Tech Skills: {tech_skills}")
         current_app.logger.info(f"🧠 Non-Tech Skills: {non_tech_skills}")
 
         is_fallback = bool(data.get("is_fallback", False)) or bool(previous_fallback_ids)
@@ -138,9 +138,9 @@ def get_recommendations():
             matched_techs = [(pid_, w) for pid_, w in pos["technical_skills"] if pid_ in tech_skills]
             matched_nontechs = [(pid_, w) for pid_, w in pos["non_technical_skills"] if pid_ in non_tech_skills]
 
-            subject_fit_percentage = min(len(matched_subjects) * 10, 100)
-            technical_fit_percentage = min(len(matched_techs) * 10, 100)
-            nontech_fit_percentage = min(len(matched_nontechs) * 10, 100)
+            subject_fit_percentage = round((len(matched_subjects) / len(pos["subjects"])) * 100, 2) if pos["subjects"] else 0
+            technical_fit_percentage = round((len(matched_techs) / len(pos["technical_skills"])) * 100, 2) if pos["technical_skills"] else 0
+            nontech_fit_percentage = round((len(matched_nontechs) / len(pos["non_technical_skills"])) * 100, 2) if pos["non_technical_skills"] else 0
 
             total = {
                 "subjects": sum(w for _, w in pos["subjects"]),
@@ -168,7 +168,7 @@ def get_recommendations():
 
             current_app.logger.info(f"⬆️ Was fallback promoted: {is_fallback and pid in previous_fallback_ids}")
             current_app.logger.info(
-                f"🧾 Position: {pos['position_name']} | Matched: {matched_weight} | "
+                f"📟 Position: {pos['position_name']} | Matched: {matched_weight} | "
                 f"Total: {total_weight} | Min Fit: {base} | Fit Level: {fit_level} | UI Match %: {visual_score}"
             )
 
@@ -280,7 +280,6 @@ def get_recommendations():
     finally:
         if 'connection' in locals() and connection.is_connected():
             connection.close()
-
 
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
