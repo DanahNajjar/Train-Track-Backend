@@ -43,7 +43,7 @@ def get_recommendations():
     data = request.get_json()
 
     user_id = data.get("user_id", "guest_unknown")
-    current_app.logger.info(f"📟 User ID for saving: {user_id}")
+    current_app.logger.info(f"📿 User ID for saving: {user_id}")
 
     if isinstance(data.get("subjects"), str):
         try:
@@ -81,7 +81,7 @@ def get_recommendations():
         }
 
         current_app.logger.info(f"📘 Subjects: {subject_ids}")
-        current_app.logger.info(f"🛠️ Tech Skills: {tech_skills}")
+        current_app.logger.info(f"🚰 Tech Skills: {tech_skills}")
         current_app.logger.info(f"🧠 Non-Tech Skills: {non_tech_skills}")
 
         is_fallback = bool(data.get("is_fallback", False)) or bool(previous_fallback_ids)
@@ -161,7 +161,7 @@ def get_recommendations():
             visual_score = round(min((matched_weight / base / 1.5) * 100, 100), 2)
 
             current_app.logger.info(
-                f"🧶 Position: {pos['position_name']} | Matched: {matched_weight} | Total: {total_weight} | Min Fit: {base} | Fit Level: {fit_level} | UI Match %: {visual_score}"
+                f"🧦 Position: {pos['position_name']} | Matched: {matched_weight} | Total: {total_weight} | Min Fit: {base} | Fit Level: {fit_level} | UI Match %: {visual_score}"
             )
 
             results.append({
@@ -272,7 +272,7 @@ def get_recommendations():
     finally:
         if 'connection' in locals() and connection.is_connected():
             connection.close()
-            
+
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
     try:
