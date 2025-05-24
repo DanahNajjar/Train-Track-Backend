@@ -43,7 +43,7 @@ def get_recommendations():
     data = request.get_json()
 
     user_id = data.get("user_id", "guest_unknown")
-    current_app.logger.info(f"📿 User ID for saving: {user_id}")
+    current_app.logger.info(f"📟 User ID for saving: {user_id}")
 
     if isinstance(data.get("subjects"), str):
         try:
@@ -81,8 +81,8 @@ def get_recommendations():
         }
 
         current_app.logger.info(f"📘 Subjects: {subject_ids}")
-        current_app.logger.info(f"💠 Tech Skills: {tech_skills}")
-        current_app.logger.info(f"🧠 Non-Tech Skills: {non_tech_skills}")
+        current_app.logger.info(f"🔠 Tech Skills: {tech_skills}")
+        current_app.logger.info(f"🧐 Non-Tech Skills: {non_tech_skills}")
 
         is_fallback = bool(data.get("is_fallback", False)) or bool(previous_fallback_ids)
         error = validate_user_input(subject_ids, tech_skills, non_tech_skills, is_fallback)
@@ -131,15 +131,15 @@ def get_recommendations():
 
         for pid, pos in positions.items():
             matched_counts = {
-                "subjects": len(set(pid_ for pid_, _ in pos["subjects"] if pid_ in subject_ids)),
-                "technical_skills": len(set(pid_ for pid_, _ in pos["technical_skills"] if pid_ in tech_skills)),
-                "non_technical_skills": len(set(pid_ for pid_, _ in pos["non_technical_skills"] if pid_ in non_tech_skills))
+                "subjects": len([pid_ for pid_, _ in pos["subjects"] if pid_ in subject_ids]),
+                "technical_skills": len([pid_ for pid_, _ in pos["technical_skills"] if pid_ in tech_skills]),
+                "non_technical_skills": len([pid_ for pid_, _ in pos["non_technical_skills"] if pid_ in non_tech_skills])
             }
 
-            total_counts = {
-                "subjects": len(set(pid_ for pid_, _ in pos["subjects"])),
-                "technical_skills": len(set(pid_ for pid_, _ in pos["technical_skills"])),
-                "non_technical_skills": len(set(pid_ for pid_, _ in pos["non_technical_skills"]))
+            user_selected_counts = {
+                "subjects": len(subject_ids),
+                "technical_skills": len(tech_skills),
+                "non_technical_skills": len(non_tech_skills)
             }
 
             weighted_total = {
@@ -166,18 +166,14 @@ def get_recommendations():
             fit_level = get_fit_level(matched_weight, base)
             visual_score = round(min((matched_weight / base / 1.5) * 100, 100), 2)
 
-            current_app.logger.info(
-                f"🧶 Position: {pos['position_name']} | Matched: {matched_weight} | Total: {total_weight} | Min Fit: {base} | Fit Level: {fit_level} | UI Match %: {visual_score}"
-            )
-
             results.append({
                 "fit_level": fit_level,
                 "match_score_percentage": visual_score,
                 "position_id": pid,
                 "position_name": pos["position_name"],
-                "subject_fit_percentage": round((matched_counts["subjects"] / total_counts["subjects"] * 100), 2) if total_counts["subjects"] else 0,
-                "technical_skill_fit_percentage": round((matched_counts["technical_skills"] / total_counts["technical_skills"] * 100), 2) if total_counts["technical_skills"] else 0,
-                "non_technical_skill_fit_percentage": round((matched_counts["non_technical_skills"] / total_counts["non_technical_skills"] * 100), 2) if total_counts["non_technical_skills"] else 0,
+                "subject_fit_percentage": round((matched_counts["subjects"] / user_selected_counts["subjects"] * 100), 2) if user_selected_counts["subjects"] else 0,
+                "technical_skill_fit_percentage": round((matched_counts["technical_skills"] / user_selected_counts["technical_skills"] * 100), 2) if user_selected_counts["technical_skills"] else 0,
+                "non_technical_skill_fit_percentage": round((matched_counts["non_technical_skills"] / user_selected_counts["non_technical_skills"] * 100), 2) if user_selected_counts["non_technical_skills"] else 0,
                 "was_promoted_from_fallback": is_fallback and pid in previous_fallback_ids,
                 "matched_weight": matched_weight,
                 "min_fit_score": base,
@@ -278,6 +274,7 @@ def get_recommendations():
     finally:
         if 'connection' in locals() and connection.is_connected():
             connection.close()
+
 
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
