@@ -130,13 +130,13 @@ def get_recommendations():
         results = []
 
         for pid, pos in positions.items():
-            total = {
+            total_counts = {
                 "subjects": len(pos["subjects"]),
                 "technical_skills": len(pos["technical_skills"]),
                 "non_technical_skills": len(pos["non_technical_skills"])
             }
 
-            matched = {
+            matched_counts = {
                 "subjects": len([1 for pid_, _ in pos["subjects"] if pid_ in subject_ids]),
                 "technical_skills": len([1 for pid_, _ in pos["technical_skills"] if pid_ in tech_skills]),
                 "non_technical_skills": len([1 for pid_, _ in pos["non_technical_skills"] if pid_ in non_tech_skills])
@@ -175,9 +175,9 @@ def get_recommendations():
                 "match_score_percentage": visual_score,
                 "position_id": pid,
                 "position_name": pos["position_name"],
-                "subject_fit_percentage": round((matched["subjects"] / total["subjects"]) * 100, 2) if total["subjects"] else 0,
-                "technical_skill_fit_percentage": round((matched["technical_skills"] / total["technical_skills"]) * 100, 2) if total["technical_skills"] else 0,
-                "non_technical_skill_fit_percentage": round((matched["non_technical_skills"] / total["non_technical_skills"]) * 100, 2) if total["non_technical_skills"] else 0,
+                "subject_fit_percentage": round((matched_counts["subjects"] / total_counts["subjects"] * 100), 2) if total_counts["subjects"] else 0,
+                "technical_skill_fit_percentage": round((matched_counts["technical_skills"] / total_counts["technical_skills"] * 100), 2) if total_counts["technical_skills"] else 0,
+                "non_technical_skill_fit_percentage": round((matched_counts["non_technical_skills"] / total_counts["non_technical_skills"] * 100), 2) if total_counts["non_technical_skills"] else 0,
                 "was_promoted_from_fallback": is_fallback and pid in previous_fallback_ids,
                 "matched_weight": matched_weight,
                 "min_fit_score": base,
