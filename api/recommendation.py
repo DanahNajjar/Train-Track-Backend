@@ -35,7 +35,7 @@ def get_fit_level(score, base):
     else:
         return "Perfect Match"
 
-@recommendation_routes.route('/recommendations', methods=['POST'])
+@recommendation_routes.route('/recommendations', methods=['POST']) 
 def get_recommendations():
     current_app.logger.info("🔥 /recommendations route HIT")
     current_app.logger.info("🚀 Starting recommendation processing...")
@@ -43,7 +43,7 @@ def get_recommendations():
     data = request.get_json()
 
     user_id = data.get("user_id", "guest_unknown")
-    current_app.logger.info(f"🧾 User ID for saving: {user_id}")
+    current_app.logger.info(f"📟 User ID for saving: {user_id}")
 
     if isinstance(data.get("subjects"), str):
         try:
@@ -130,12 +130,6 @@ def get_recommendations():
         results = []
 
         for pid, pos in positions.items():
-            total_counts = {
-                "subjects": len(pos["subjects"]),
-                "technical_skills": len(pos["technical_skills"]),
-                "non_technical_skills": len(pos["non_technical_skills"])
-            }
-
             matched_counts = {
                 "subjects": len([1 for pid_, _ in pos["subjects"] if pid_ in subject_ids]),
                 "technical_skills": len([1 for pid_, _ in pos["technical_skills"] if pid_ in tech_skills]),
@@ -167,7 +161,7 @@ def get_recommendations():
             visual_score = round(min((matched_weight / base / 1.5) * 100, 100), 2)
 
             current_app.logger.info(
-                f"🧮 Position: {pos['position_name']} | Matched: {matched_weight} | Total: {total_weight} | Min Fit: {base} | Fit Level: {fit_level} | UI Match %: {visual_score}"
+                f"🧶 Position: {pos['position_name']} | Matched: {matched_weight} | Total: {total_weight} | Min Fit: {base} | Fit Level: {fit_level} | UI Match %: {visual_score}"
             )
 
             results.append({
@@ -175,9 +169,9 @@ def get_recommendations():
                 "match_score_percentage": visual_score,
                 "position_id": pid,
                 "position_name": pos["position_name"],
-                "subject_fit_percentage": round((matched_counts["subjects"] / total_counts["subjects"] * 100), 2) if total_counts["subjects"] else 0,
-                "technical_skill_fit_percentage": round((matched_counts["technical_skills"] / total_counts["technical_skills"] * 100), 2) if total_counts["technical_skills"] else 0,
-                "non_technical_skill_fit_percentage": round((matched_counts["non_technical_skills"] / total_counts["non_technical_skills"] * 100), 2) if total_counts["non_technical_skills"] else 0,
+                "subject_fit_percentage": round((matched_counts["subjects"] / len(pos["subjects"]) * 100), 2) if len(pos["subjects"]) else 0,
+                "technical_skill_fit_percentage": round((matched_counts["technical_skills"] / len(pos["technical_skills"]) * 100), 2) if len(pos["technical_skills"]) else 0,
+                "non_technical_skill_fit_percentage": round((matched_counts["non_technical_skills"] / len(pos["non_technical_skills"]) * 100), 2) if len(pos["non_technical_skills"]) else 0,
                 "was_promoted_from_fallback": is_fallback and pid in previous_fallback_ids,
                 "matched_weight": matched_weight,
                 "min_fit_score": base,
@@ -209,7 +203,7 @@ def get_recommendations():
                 json.dumps(recommendation_result)
             ))
             connection.commit()
-            current_app.logger.info("💾 Trial saved to user_results.")
+            current_app.logger.info("📏 Trial saved to user_results.")
         except Exception as save_err:
             current_app.logger.error(f"❌ Failed to save result: {save_err}")
 
