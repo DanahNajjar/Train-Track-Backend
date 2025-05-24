@@ -80,10 +80,6 @@ def get_recommendations():
             "company_culture": advanced_preferences.get("company_culture", [])
         }
 
-        current_app.logger.info(f"📘 Subjects: {subject_ids}")
-        current_app.logger.info(f"🔠 Tech Skills: {tech_skills}")
-        current_app.logger.info(f"🧐 Non-Tech Skills: {non_tech_skills}")
-
         is_fallback = bool(data.get("is_fallback", False)) or bool(previous_fallback_ids)
         error = validate_user_input(subject_ids, tech_skills, non_tech_skills, is_fallback)
         if error:
@@ -136,12 +132,6 @@ def get_recommendations():
                 "non_technical_skills": len([pid_ for pid_, _ in pos["non_technical_skills"] if pid_ in non_tech_skills])
             }
 
-            user_selected_counts = {
-                "subjects": len(subject_ids),
-                "technical_skills": len(tech_skills),
-                "non_technical_skills": len(non_tech_skills)
-            }
-
             weighted_total = {
                 "subjects": sum(w for _, w in pos["subjects"]),
                 "technical_skills": sum(w for _, w in pos["technical_skills"]),
@@ -166,14 +156,22 @@ def get_recommendations():
             fit_level = get_fit_level(matched_weight, base)
             visual_score = round(min((matched_weight / base / 1.5) * 100, 100), 2)
 
+            # 🐛 Debug output
+            print("📊 DEBUG FOR POSITION:", pid)
+            print("▶️ Position Name:", pos["position_name"])
+            print("Subjects: Matched", matched_counts["subjects"], "/", len(pos["subjects"]))
+            print("Tech:     Matched", matched_counts["technical_skills"], "/", len(pos["technical_skills"]))
+            print("Non-Tech: Matched", matched_counts["non_technical_skills"], "/", len(pos["non_technical_skills"]))
+            print("-----------")
+
             results.append({
                 "fit_level": fit_level,
                 "match_score_percentage": visual_score,
                 "position_id": pid,
                 "position_name": pos["position_name"],
-                "subject_fit_percentage": round((matched_counts["subjects"] / user_selected_counts["subjects"] * 100), 2) if user_selected_counts["subjects"] else 0,
-                "technical_skill_fit_percentage": round((matched_counts["technical_skills"] / user_selected_counts["technical_skills"] * 100), 2) if user_selected_counts["technical_skills"] else 0,
-                "non_technical_skill_fit_percentage": round((matched_counts["non_technical_skills"] / user_selected_counts["non_technical_skills"] * 100), 2) if user_selected_counts["non_technical_skills"] else 0,
+                "subject_fit_percentage": round((matched_counts["subjects"] / len(pos["subjects"]) * 100), 2) if len(pos["subjects"]) else 0,
+                "technical_skill_fit_percentage": round((matched_counts["technical_skills"] / len(pos["technical_skills"]) * 100), 2) if len(pos["technical_skills"]) else 0,
+                "non_technical_skill_fit_percentage": round((matched_counts["non_technical_skills"] / len(pos["non_technical_skills"]) * 100), 2) if len(pos["non_technical_skills"]) else 0,
                 "was_promoted_from_fallback": is_fallback and pid in previous_fallback_ids,
                 "matched_weight": matched_weight,
                 "min_fit_score": base,
@@ -274,7 +272,6 @@ def get_recommendations():
     finally:
         if 'connection' in locals() and connection.is_connected():
             connection.close()
-
 
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
