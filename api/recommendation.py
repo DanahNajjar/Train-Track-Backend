@@ -848,7 +848,7 @@ def get_company_details(company_id):
     if not company:
         return jsonify({"success": False, "message": "Company not found"}), 404
 
-    # ✅ 2. Get main branch details including website, city, address, country
+    # ✅ 2. Get main branch details (includes website link)
     cursor.execute("""
         SELECT b.website_link, b.city, b.address, co.name AS country
         FROM branches b
@@ -857,13 +857,15 @@ def get_company_details(company_id):
         LIMIT 1
     """, (company_id,))
     branch = cursor.fetchone()
+
     company["main_branch"] = branch if branch else {}
+    company["website_link"] = branch["website_link"] if branch and "website_link" in branch else None
 
     # ✅ 3. Count total branches
     cursor.execute("SELECT COUNT(*) AS count FROM branches WHERE company_id = %s", (company_id,))
     company["branch_count"] = cursor.fetchone()["count"]
 
-    # ✅ 4. Culture keywords
+    # ✅ 4. Get culture keywords
     cursor.execute("""
         SELECT ck.name
         FROM company_culture cc
@@ -873,9 +875,9 @@ def get_company_details(company_id):
     culture_keywords = [row["name"] for row in cursor.fetchall()]
     company["culture_keywords"] = ", ".join(culture_keywords)
 
-    # ✅ 5. Positions — ID and name only
+    # ✅ 5. Get all positions (id, name, and description)
     cursor.execute("""
-        SELECT p.id, p.name
+        SELECT p.id, p.name, p.description
         FROM company_positions cp
         JOIN positions p ON cp.position_id = p.id
         WHERE cp.company_id = %s
@@ -883,3 +885,4 @@ def get_company_details(company_id):
     company["positions"] = cursor.fetchall()
 
     return jsonify({"success": True, "company": company})
+
