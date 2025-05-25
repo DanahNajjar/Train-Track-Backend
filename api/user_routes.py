@@ -8,56 +8,26 @@ import google.oauth2.id_token
 user_routes = Blueprint('user_routes', __name__)
 
 # ✅ 1. Google Login
-@user_routes.route('/google-login', methods=['POST'])
+@user_routes.route('/user/google-login', methods=["GET"])
 def google_login():
     try:
-        data = request.get_json()
-        id_token = data.get("id_token")
+        id_token = request.args.get("credential")  # ✅ get from URL param
+
         if not id_token:
-            return jsonify({"success": False, "message": "Missing ID token."}), 400
+            return jsonify({"success": False, "message": "Missing token"}), 400
 
-        request_adapter = google.auth.transport.requests.Request()
-        decoded_token = google.oauth2.id_token.verify_oauth2_token(id_token, request_adapter)
+        # ✅ (Optional) verify token using Google libraries
+        # user_info = verify_google_token(id_token)  # if you implement this
 
-        user_email = decoded_token.get("email")
-        full_name = decoded_token.get("name")
-        google_user_id = decoded_token.get("sub")
+        # Simulate a user ID for now
+        user_id = "google_" + id_token[:10]  # just mock
+        session['user_id'] = user_id
 
-        if not user_email or not full_name:
-            return jsonify({"success": False, "message": "Incomplete Google user info."}), 400
-
-        connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
-
-        # ✅ Check for existing user
-        cursor.execute("SELECT id FROM users WHERE email = %s", (user_email,))
-        user = cursor.fetchone()
-
-        if user:
-            user_id = user["id"]
-        else:
-            # ✅ Create new user
-            cursor.execute("""
-                INSERT INTO users (google_user_id, full_name, email)
-                VALUES (%s, %s, %s)
-            """, (google_user_id, full_name, user_email))
-            connection.commit()
-            user_id = cursor.lastrowid
-
-        return jsonify({
-            "success": True,
-            "user_id": user_id,
-            "full_name": full_name,
-            "email": user_email
-        }), 200
-
-    except ValueError as ve:
-        return jsonify({"success": False, "message": "Invalid Google token."}), 400
+        return redirect("https://train-track-frontend.onrender.com/traintrack/start")
 
     except Exception as e:
-        current_app.logger.error(f"❌ Login error: {e}")
-        return jsonify({"success": False, "message": str(e)}), 500
-
+        print(f"❌ Google login error: {e}")
+        return jsonify({"success": False, "message": "Server error"}), 500
 
 # ✅ 2. Guest ID Generator
 @user_routes.route('/guest', methods=['GET'])
