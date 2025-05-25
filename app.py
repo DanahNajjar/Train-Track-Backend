@@ -25,7 +25,7 @@ app.secret_key = os.getenv("FLASK_SECRET_KEY", "train_track_secret_key")
 FRONTEND_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:8000",
-    "https://train-track-frontend.onrender.com"
+    "https://train-track-frontend.onrender.com",
     "https://accounts.google.com"
 
 ]
