@@ -26,6 +26,8 @@ FRONTEND_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:8000",
     "https://train-track-frontend.onrender.com"
+    "https://accounts.google.com"
+
 ]
 
 # ✅ Enable CORS globally for all routes and preflight requests
