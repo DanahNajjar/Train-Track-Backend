@@ -826,3 +826,60 @@ def set_debug_session():
         import traceback
         traceback.print_exc()
         return jsonify({"success": False, "message": str(e)}), 500
+        
+@recommendation_routes.route('/company/<int:company_id>', methods=['GET'])
+def get_company_details(company_id):
+    connection = None
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        # ✅ Main company info + culture + training mode + branch count
+        cursor.execute("""
+            SELECT
+                c.id AS company_id,
+                c.company_name,
+                c.description,
+                c.training_hours,
+                tm.description AS training_mode,
+                cs.description AS company_size,
+                i.name AS industry,
+                GROUP_CONCAT(DISTINCT cc_k.name SEPARATOR ', ') AS culture_keywords,
+                COUNT(DISTINCT b.id) AS branch_count
+            FROM companies c
+            LEFT JOIN training_modes tm ON c.training_mode_id = tm.id
+            LEFT JOIN company_sizes cs ON c.company_sizes_id = cs.id
+            LEFT JOIN industries i ON c.industry_id = i.id
+            LEFT JOIN company_culture cc ON cc.company_id = c.id
+            LEFT JOIN company_culture_keywords cc_k ON cc.keyword_id = cc_k.id
+            LEFT JOIN branches b ON b.company_id = c.id
+            WHERE c.id = %s
+            GROUP BY c.id
+        """, (company_id,))
+        company = cursor.fetchone()
+
+        if not company:
+            return jsonify({"success": False, "message": "Company not found."}), 404
+
+        # ✅ Fetch positions offered by this company
+        cursor.execute("""
+            SELECT p.id, p.name, p.description
+            FROM company_positions cp
+            JOIN positions p ON cp.position_id = p.id
+            WHERE cp.company_id = %s
+        """, (company_id,))
+        company["positions"] = cursor.fetchall()
+
+        return jsonify({
+            "success": True,
+            "company": company
+        }), 200
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "message": str(e)}), 500
+
+    finally:
+        if connection and connection.is_connected():
+            connection.close()
