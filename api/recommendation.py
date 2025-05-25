@@ -853,7 +853,7 @@ def get_company_details(company_id):
     if not company:
         return jsonify({"success": False, "message": "Company not found"}), 404
 
-    # ✅ 2. Get main branch with full location details
+    # ✅ 2. Get main branch info with website
     cursor.execute("""
         SELECT 
             b.website_link,
@@ -866,22 +866,14 @@ def get_company_details(company_id):
         LIMIT 1
     """, (company_id,))
     branch = cursor.fetchone()
+    company["main_branch"] = branch if branch else {}
+    company["website_link"] = branch["website_link"] if branch and branch["website_link"] else None
 
-    company["main_branch"] = {
-        "city": branch["city"] if branch else None,
-        "address": branch["address"] if branch else None,
-        "country": branch["country"] if branch else None,
-        "website_link": branch["website_link"] if branch and branch["website_link"] else None
-    } if branch else {}
-
-    # ✅ Store website separately for Blade template
-    company["website_link"] = company["main_branch"].get("website_link")
-
-    # ✅ 3. Count all branches
+    # ✅ 3. Count branches
     cursor.execute("SELECT COUNT(*) AS count FROM branches WHERE company_id = %s", (company_id,))
     company["branch_count"] = cursor.fetchone()["count"]
 
-    # ✅ 4. Culture keywords (remains — or rename as 'cultural_values' later)
+    # ✅ 4. Culture keywords
     cursor.execute("""
         SELECT ck.name
         FROM company_culture cc
@@ -891,7 +883,7 @@ def get_company_details(company_id):
     culture_keywords = [row["name"] for row in cursor.fetchall()]
     company["culture_keywords"] = ", ".join(culture_keywords)
 
-    # ✅ 5. Position names (no descriptions)
+    # ✅ 5. Only get position names (no descriptions)
     cursor.execute("""
         SELECT p.id, p.name
         FROM company_positions cp
@@ -899,5 +891,9 @@ def get_company_details(company_id):
         WHERE cp.company_id = %s
     """, (company_id,))
     company["positions"] = cursor.fetchall()
+
+    # ✅ 6. Add static logo filename
+    safe_name = company['company_name'].lower().replace(" ", "").replace("’", "").replace("&", "and")
+    company["logo_filename"] = f"{safe_name}.png"
 
     return jsonify({"success": True, "company": company})
