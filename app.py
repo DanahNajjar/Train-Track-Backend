@@ -31,7 +31,7 @@ FRONTEND_ORIGINS = [
 ]
 
 # ✅ Enable CORS globally for all routes and preflight requests
-CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
+CORS(app, supports_credentials=True, resources={r"/*": {"origins": FRONTEND_ORIGINS}})
 
 # ✅ Register blueprints
 from api.wizard_routes import wizard_routes
