@@ -827,16 +827,21 @@ def set_debug_session():
         traceback.print_exc()
         return jsonify({"success": False, "message": str(e)}), 500
         
-@app.route('/company/<int:company_id>', methods=['GET'])
+@recommendation_routes.route('/company/<int:company_id>', methods=['GET'])
 def get_company_details(company_id):
     connection = get_db_connection()
     cursor = connection.cursor(dictionary=True)
 
-    # ✅ 1. Get company core info
+    # ✅ 1. Get core company info
     cursor.execute("""
-        SELECT c.id AS company_id, c.company_name, c.description, c.training_hours,
-               tm.description AS training_mode, cs.description AS company_size,
-               i.name AS industry
+        SELECT 
+            c.id AS company_id,
+            c.company_name,
+            c.description,
+            c.training_hours,
+            tm.description AS training_mode,
+            cs.description AS company_size,
+            i.name AS industry
         FROM companies c
         JOIN training_modes tm ON c.training_mode_id = tm.id
         JOIN company_sizes cs ON c.company_sizes_id = cs.id
@@ -848,24 +853,27 @@ def get_company_details(company_id):
     if not company:
         return jsonify({"success": False, "message": "Company not found"}), 404
 
-    # ✅ 2. Get main branch details (includes website link)
+    # ✅ 2. Get main branch info with website
     cursor.execute("""
-        SELECT b.website_link, b.city, b.address, co.name AS country
+        SELECT 
+            b.website_link,
+            b.city,
+            b.address,
+            co.name AS country
         FROM branches b
         JOIN countries co ON b.country_id = co.id
         WHERE b.company_id = %s AND b.is_main_branch = 1
         LIMIT 1
     """, (company_id,))
     branch = cursor.fetchone()
-
     company["main_branch"] = branch if branch else {}
-    company["website_link"] = branch["website_link"] if branch and "website_link" in branch else None
+    company["website_link"] = branch["website_link"] if branch and branch["website_link"] else None
 
-    # ✅ 3. Count total branches
+    # ✅ 3. Count branches
     cursor.execute("SELECT COUNT(*) AS count FROM branches WHERE company_id = %s", (company_id,))
     company["branch_count"] = cursor.fetchone()["count"]
 
-    # ✅ 4. Get culture keywords
+    # ✅ 4. Culture keywords
     cursor.execute("""
         SELECT ck.name
         FROM company_culture cc
@@ -875,9 +883,9 @@ def get_company_details(company_id):
     culture_keywords = [row["name"] for row in cursor.fetchall()]
     company["culture_keywords"] = ", ".join(culture_keywords)
 
-    # ✅ 5. Get all positions (id, name, and description)
+    # ✅ 5. Only get position names (no descriptions)
     cursor.execute("""
-        SELECT p.id, p.name, p.description
+        SELECT p.id, p.name
         FROM company_positions cp
         JOIN positions p ON cp.position_id = p.id
         WHERE cp.company_id = %s
@@ -885,4 +893,3 @@ def get_company_details(company_id):
     company["positions"] = cursor.fetchall()
 
     return jsonify({"success": True, "company": company})
-
