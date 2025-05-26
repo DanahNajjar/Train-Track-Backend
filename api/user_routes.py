@@ -1,33 +1,58 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, session, redirect
 from api.db import get_db_connection
 import uuid
-import json  
+import json
 import google.auth.transport.requests
 import google.oauth2.id_token
 
 user_routes = Blueprint('user_routes', __name__)
 
-# ✅ 1. Google Login
+# ✅ 1. Google Login (Secure & Clean)
 @user_routes.route('/user/google-login', methods=["GET"])
 def google_login():
     try:
-        id_token = request.args.get("credential")  # ✅ get from URL param
+        from google.oauth2 import id_token
+        from google.auth.transport import requests
 
-        if not id_token:
+        token = request.args.get("credential")
+        if not token:
             return jsonify({"success": False, "message": "Missing token"}), 400
 
-        # ✅ (Optional) verify token using Google libraries
-        # user_info = verify_google_token(id_token)  # if you implement this
+        CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"
+        id_info = id_token.verify_oauth2_token(token, requests.Request(), CLIENT_ID)
 
-        # Simulate a user ID for now
-        user_id = "google_" + id_token[:10]  # just mock
-        session['user_id'] = user_id
+        # ✅ Extract user info from Google
+        google_user_id = id_info['sub']
+        full_name = id_info.get('name', '')
+        email = id_info.get('email', '')
+
+        session['user_id'] = google_user_id
+
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # ✅ Insert only if user is new
+        cursor.execute("SELECT id FROM users WHERE google_user_id = %s", (google_user_id,))
+        result = cursor.fetchone()
+        if not result:
+            cursor.execute("""
+                INSERT INTO users (google_user_id, full_name, email)
+                VALUES (%s, %s, %s)
+            """, (google_user_id, full_name, email))
+            connection.commit()
 
         return redirect("https://train-track-frontend.onrender.com/traintrack/start")
 
+    except ValueError:
+        return jsonify({"success": False, "message": "Invalid token"}), 401
+
     except Exception as e:
-        print(f"❌ Google login error: {e}")
+        current_app.logger.error(f"❌ Google login error: {e}")
         return jsonify({"success": False, "message": "Server error"}), 500
+
+    finally:
+        if 'connection' in locals() and connection and connection.is_connected():
+            connection.close()
 
 # ✅ 2. Guest ID Generator
 @user_routes.route('/guest', methods=['GET'])
@@ -37,67 +62,32 @@ def generate_guest_user():
         "success": True,
         "user_id": guest_id
     }), 200
-    
-@user_routes.route('/results/<user_id>', methods=['GET'])
-def get_user_results(user_id):
-    try:
-        connection = get_db_connection()
-        cursor = connection.cursor(dictionary=True)
 
-        cursor.execute("""
-            SELECT id, submission_data, result_data, submitted_at
-            FROM user_results
-            WHERE user_id = %s
-            ORDER BY submitted_at DESC
-        """, (user_id,))
-
-        results = cursor.fetchall()
-
-        return jsonify({
-            "success": True,
-            "trials": results
-        }), 200
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"success": False, "message": str(e)}), 500
-
-    finally:
-        if connection and connection.is_connected():
-            connection.close()
-
+# ✅ 3. Save User Results
 @user_routes.route('/results', methods=['POST'])
 def save_user_results():
     connection = None
     try:
         data = request.get_json()
-
-        # ✅ Extract values
         user_id = data.get("user_id")
         submission_data = data.get("submission_data")
         result_data = data.get("result_data")
 
-        # ✅ Validate
         if not user_id or not submission_data or not result_data:
             return jsonify({
                 "success": False,
                 "message": "Missing user_id, submission_data or result_data"
             }), 400
 
-        # ✅ Convert Python dicts/lists to JSON strings
         submission_json = json.dumps(submission_data)
         result_json = json.dumps(result_data)
 
-        # ✅ Connect and insert
         connection = get_db_connection()
         cursor = connection.cursor()
-
         cursor.execute("""
             INSERT INTO user_results (user_id, submission_data, result_data)
             VALUES (%s, %s, %s)
         """, (user_id, submission_json, result_json))
-
         connection.commit()
 
         return jsonify({
@@ -116,10 +106,39 @@ def save_user_results():
         if connection and connection.is_connected():
             connection.close()
 
+# ✅ 4. Fetch User Results
+@user_routes.route('/results/<user_id>', methods=['GET'])
+def get_user_results(user_id):
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT id, submission_data, result_data, submitted_at
+            FROM user_results
+            WHERE user_id = %s
+            ORDER BY submitted_at DESC
+        """, (user_id,))
+
+        results = cursor.fetchall()
+        return jsonify({
+            "success": True,
+            "trials": results
+        }), 200
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "message": str(e)}), 500
+
+    finally:
+        if connection and connection.is_connected():
+            connection.close()
+
+# ✅ 5. Get User Profile (guest & real)
 @user_routes.route('/profile/<user_id>', methods=['GET'])
 def get_user_profile(user_id):
     try:
-        # ✅ Handle guest users
         if user_id.startswith("guest_"):
             return jsonify({
                 "success": True,
@@ -133,14 +152,14 @@ def get_user_profile(user_id):
                 "guest": True
             }), 200
 
-        # ✅ Handle real users from DB
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
+        # ✅ Match by google_user_id instead of id
         cursor.execute("""
-            SELECT id, full_name, email, registration_date, role
+            SELECT google_user_id AS id, full_name, email, registration_date, role
             FROM users
-            WHERE id = %s
+            WHERE google_user_id = %s
         """, (user_id,))
         user = cursor.fetchone()
 
@@ -161,6 +180,7 @@ def get_user_profile(user_id):
         if 'connection' in locals() and connection and connection.is_connected():
             connection.close()
 
+# ✅ 6. Delete User Result
 @user_routes.route('/results/<int:trial_id>', methods=['DELETE'])
 def delete_user_result(trial_id):
     try:
@@ -177,6 +197,82 @@ def delete_user_result(trial_id):
 
     except Exception as e:
         current_app.logger.error(f"❌ Error deleting result: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+    finally:
+        if connection and connection.is_connected():
+            connection.close()
+
+# ✅ 7. Logout (Optional)
+@user_routes.route('/logout', methods=['GET'])
+def logout():
+    session.clear()
+    return jsonify({"success": True, "message": "Logged out."}), 200
+    
+# ✅ 8. Save Trial Progress or Completion
+@user_routes.route('/wizard/save-trial', methods=['POST'])
+def save_user_trial():
+    connection = None
+    try:
+        data = request.get_json()
+
+        user_id = data.get("user_id")
+        status_class = data.get("status_class")
+        status_label = data.get("status_label")
+        saved_data = data.get("saved_data")
+        result_data = data.get("result_data")
+        is_submitted = data.get("is_submitted", False)
+
+        if not user_id or not status_class or not status_label:
+            return jsonify({"success": False, "message": "Missing required fields"}), 400
+
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            INSERT INTO user_trials (user_id, status_class, status_label, saved_data, result_data, is_submitted)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            user_id,
+            status_class,
+            status_label,
+            json.dumps(saved_data) if saved_data else None,
+            json.dumps(result_data) if result_data else None,
+            is_submitted
+        ))
+
+        connection.commit()
+
+        return jsonify({"success": True, "message": "Trial saved"}), 200
+
+    except Exception as e:
+        current_app.logger.error(f"❌ Error saving trial: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+    finally:
+        if connection and connection.is_connected():
+            connection.close()
+
+# ✅ 9. Get All Trials for User (Profile Timeline)
+@user_routes.route('/profile/trials/<user_id>', methods=['GET'])
+def get_user_trials(user_id):
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT id, status_class, status_label, is_submitted, created_at, last_updated
+            FROM user_trials
+            WHERE user_id = %s
+            ORDER BY created_at DESC
+        """, (user_id,))
+
+        trials = cursor.fetchall()
+
+        return jsonify({"success": True, "trials": trials}), 200
+
+    except Exception as e:
+        current_app.logger.error(f"❌ Error fetching trials: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
     finally:
