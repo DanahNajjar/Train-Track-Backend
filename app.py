@@ -1,24 +1,20 @@
 from flask import Flask, send_from_directory
 from flask_cors import CORS
-from api.recommendation import recommendation_routes  # ✅ CORRECT
+from api.recommendation import recommendation_routes
 import os
 import logging
-
 from dotenv import load_dotenv
-load_dotenv()
 
-# ✅ Setup Logging
-logging.basicConfig(level=logging.INFO)
-
-# ✅ Load environment variables
+# ✅ Load the correct .env based on environment
 if os.getenv("FLASK_ENV") == "production":
-    from dotenv import load_dotenv
     load_dotenv(dotenv_path=".env.remote")
     logging.info("🔧 Loaded .env.remote for production")
 else:
-    from dotenv import load_dotenv
     load_dotenv(dotenv_path=".env.local")
     logging.info("🔧 Loaded .env.local for development")
+
+# ✅ Setup Logging
+logging.basicConfig(level=logging.INFO)
 
 # ✅ Create Flask app
 app = Flask(__name__, static_folder='static')
@@ -30,7 +26,6 @@ FRONTEND_ORIGINS = [
     "http://127.0.0.1:8000",
     "https://train-track-frontend.onrender.com",
     "https://accounts.google.com"
-
 ]
 
 # ✅ Enable CORS globally for all routes and preflight requests
