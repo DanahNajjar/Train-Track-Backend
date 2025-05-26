@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app, session, redirect
 from api.db import get_db_connection
+import os
 import uuid
 import json
 import google.auth.transport.requests
@@ -18,7 +19,7 @@ def google_login():
         if not token:
             return jsonify({"success": False, "message": "Missing token"}), 400
 
-        CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"
+        CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
         id_info = id_token.verify_oauth2_token(token, requests.Request(), CLIENT_ID)
 
         # ✅ Extract user info from Google
@@ -84,15 +85,37 @@ def save_user_results():
 
         connection = get_db_connection()
         cursor = connection.cursor()
+
+        # ✅ 1. Save to user_results
         cursor.execute("""
             INSERT INTO user_results (user_id, submission_data, result_data)
             VALUES (%s, %s, %s)
         """, (user_id, submission_json, result_json))
+
+        # ✅ 2. Update latest incomplete trial in user_trials
+        cursor.execute("""
+            UPDATE user_trials
+            SET 
+                status_class = %s,
+                status_label = %s,
+                result_data = %s,
+                is_submitted = TRUE,
+                last_updated = CURRENT_TIMESTAMP
+            WHERE user_id = %s AND is_submitted = FALSE
+            ORDER BY created_at DESC
+            LIMIT 1
+        """, (
+            'completed',
+            'Completed',
+            result_json,
+            user_id
+        ))
+
         connection.commit()
 
         return jsonify({
             "success": True,
-            "message": "✅ Result saved successfully"
+            "message": "✅ Result saved successfully and trial updated"
         }), 200
 
     except Exception as e:
@@ -208,7 +231,7 @@ def delete_user_result(trial_id):
 def logout():
     session.clear()
     return jsonify({"success": True, "message": "Logged out."}), 200
-    
+
 # ✅ 8. Save Trial Progress or Completion
 @user_routes.route('/wizard/save-trial', methods=['POST'])
 def save_user_trial():

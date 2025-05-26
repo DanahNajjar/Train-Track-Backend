@@ -4,6 +4,9 @@ from api.recommendation import recommendation_routes  # ✅ CORRECT
 import os
 import logging
 
+from dotenv import load_dotenv
+load_dotenv()
+
 # ✅ Setup Logging
 logging.basicConfig(level=logging.INFO)
 
