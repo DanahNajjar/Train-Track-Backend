@@ -9,13 +9,13 @@ import google.oauth2.id_token
 user_routes = Blueprint('user_routes', __name__)
 
 # ✅ 1. Google Login (Secure & Clean)
-@user_routes.route('/user/google-login', methods=["GET"])
+@user_routes.route('/user/google-login', methods=["GET", "POST"])
 def google_login():
     try:
         from google.oauth2 import id_token
         from google.auth.transport import requests
 
-        token = request.args.get("credential")
+        token = request.form.get("credential") or request.args.get("credential")
         if not token:
             return jsonify({"success": False, "message": "Missing token"}), 400
 
