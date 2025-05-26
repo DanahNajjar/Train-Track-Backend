@@ -364,8 +364,8 @@ def submit_wizard():
         if connection and connection.is_connected():
             cursor.close()
             connection.close()
-            
-@wizard_routes.route('/wizard/save-trial', methods=['POST'])
+
+@wizard_routes.route('/save-trial', methods=['POST'])
 def save_wizard_trial():
     try:
         data = request.get_json()
