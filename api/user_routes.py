@@ -42,7 +42,7 @@ def google_login():
             """, (google_user_id, full_name, email))
             connection.commit()
 
-        return redirect("https://train-track-frontend.onrender.com/traintrack/start")
+        return redirect(f"http://localhost:8000/profile?user_id={google_user_id}")
 
     except ValueError:
         return jsonify({"success": False, "message": "Invalid token"}), 401
