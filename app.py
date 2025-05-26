@@ -28,8 +28,14 @@ FRONTEND_ORIGINS = [
     "https://accounts.google.com"
 ]
 
-# ✅ Enable CORS globally for all routes and preflight requests
-CORS(app, supports_credentials=True, resources={r"/*": {"origins": FRONTEND_ORIGINS}})
+# ✅ Enable CORS for all routes (no logic change)
+CORS(app, supports_credentials=True, resources={
+    r"/*": {
+        "origins": FRONTEND_ORIGINS,
+        "allow_headers": "*",
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    }
+})
 
 # ✅ Register blueprints
 from api.wizard_routes import wizard_routes
