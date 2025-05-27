@@ -301,8 +301,8 @@ def get_user_trials(user_id):
     finally:
         if connection and connection.is_connected():
             connection.close()
-            
-@user_routes.route('/user/trial/<int:trial_id>', methods=['GET'])
+
+@user_routes.route('/trial/<int:trial_id>', methods=['GET'])
 def get_single_user_trial(trial_id):
     try:
         connection = get_db_connection()
