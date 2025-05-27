@@ -347,24 +347,27 @@ def get_single_user_trial(trial_id):
             cursor.close()
   
             connection.close()
-@user_routes.route('/trial/<int:trial_id>', methods=['DELETE'])
-def delete_user_trial(trial_id):
+@user_routes.route('/trial/<int:trial_id>', methods=['GET'])
+def get_single_user_trial(trial_id):
     try:
         connection = get_db_connection()
-        cursor = connection.cursor()
+        cursor = connection.cursor(dictionary=True)
 
-        cursor.execute("DELETE FROM user_trials WHERE id = %s", (trial_id,))
-        connection.commit()
+        cursor.execute("""
+            SELECT id, saved_data, result_data
+            FROM user_trials
+            WHERE id = %s
+        """, (trial_id,))
 
-        if cursor.rowcount == 0:
+        trial = cursor.fetchone()
+        if not trial:
             return jsonify({"success": False, "message": "Trial not found"}), 404
 
-        return jsonify({"success": True, "message": "✅ Trial deleted"}), 200
+        return jsonify({
+            "success": True,
+            "trialData": {
+                "saved_data": json.loads(trial["saved_data"]) if trial["saved_data"] else None,
+                "result_data": json.loads(trial["result_data"]) if trial["result_data"] else None
+            }
+        }), 200
 
-    except Exception as e:
-        current_app.logger.error(f"❌ Error deleting trial: {e}")
-        return jsonify({"success": False, "message": str(e)}), 500
-
-    finally:
-        if connection and connection.is_connected():
-            connection.close()
