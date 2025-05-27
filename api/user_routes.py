@@ -336,7 +336,11 @@ def get_single_user_trial(trial_id):
         if not trial:
             return jsonify({"success": False, "message": "Trial not found"}), 404
 
-        return jsonify({"success": True, "trialData": json.loads(trial["saved_data"]) if trial["saved_data"] else None}), 200
+        # ✅ Match the frontend's expected key name: trialData
+        return jsonify({
+            "success": True,
+            "trialData": json.loads(trial["saved_data"]) if trial["saved_data"] else None
+        }), 200
 
     except Exception as e:
         current_app.logger.error(f"❌ Error fetching trial: {e}")
