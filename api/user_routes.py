@@ -346,4 +346,25 @@ def get_single_user_trial(trial_id):
         if connection and connection.is_connected():
             cursor.close()
             connection.close()
+            
+@user_routes.route('/user/trials/<int:trial_id>', methods=['DELETE'])
+def delete_user_trial(trial_id):
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
 
+        cursor.execute("DELETE FROM user_trials WHERE id = %s", (trial_id,))
+        connection.commit()
+
+        if cursor.rowcount == 0:
+            return jsonify({"success": False, "message": "Trial not found"}), 404
+
+        return jsonify({"success": True, "message": "✅ Trial deleted"}), 200
+
+    except Exception as e:
+        current_app.logger.error(f"❌ Error deleting trial: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+    finally:
+        if connection and connection.is_connected():
+            connection.close()
