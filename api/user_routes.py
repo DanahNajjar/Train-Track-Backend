@@ -302,6 +302,7 @@ def get_user_trials(user_id):
         if connection and connection.is_connected():
             connection.close()
 
+# ✅ New: Fetch one trial by ID (for resume functionality)
 @user_routes.route('/trial/<int:trial_id>', methods=['GET'])
 def get_single_user_trial(trial_id):
     try:
@@ -321,10 +322,11 @@ def get_single_user_trial(trial_id):
         return jsonify({"success": True, "trial": trial}), 200
 
     except Exception as e:
-        current_app.logger.error(f"❌ Error fetching single trial: {e}")
+        current_app.logger.error(f"❌ Error fetching trial: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
     finally:
         if connection and connection.is_connected():
             cursor.close()
             connection.close()
+
