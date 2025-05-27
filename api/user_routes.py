@@ -345,9 +345,9 @@ def get_single_user_trial(trial_id):
     finally:
         if connection and connection.is_connected():
             cursor.close()
+  
             connection.close()
-            
-@user_routes.route('/user/trials/<int:trial_id>', methods=['DELETE'])
+@user_routes.route('/trial/<int:trial_id>', methods=['DELETE'])
 def delete_user_trial(trial_id):
     try:
         connection = get_db_connection()
