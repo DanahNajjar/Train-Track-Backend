@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO)
 app = Flask(__name__, static_folder='static')
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "train_track_secret_key")
 
-# ✅ Frontend origins (local + deployed)
+# ✅ Frontend origins
 FRONTEND_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:8000",
@@ -28,7 +28,7 @@ FRONTEND_ORIGINS = [
     "https://accounts.google.com"
 ]
 
-# ✅ Enable CORS for all routes (no logic change)
+# ✅ Enable CORS (after app is defined!)
 CORS(app, supports_credentials=True, resources={
     r"/*": {
         "origins": FRONTEND_ORIGINS,
@@ -55,7 +55,7 @@ def home():
 def test():
     return "✅ /test route is working!"
 
-# ✅ Local static file serving (not for production)
+# ✅ Local static file serving (dev only)
 if os.getenv("FLASK_ENV") != "production":
     @app.route('/static/<path:filename>')
     def serve_static(filename):
