@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO)
 app = Flask(__name__, static_folder='static')
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "train_track_secret_key")
 
-# ✅ Frontend origins
+# ✅ Frontend origins (local + deployed)
 FRONTEND_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:8000",
@@ -28,12 +28,12 @@ FRONTEND_ORIGINS = [
     "https://accounts.google.com"
 ]
 
-# ✅ Enable CORS (after app is defined!)
+# ✅ Enable CORS (for DELETE and credentials to work properly)
 CORS(app, supports_credentials=True, resources={
     r"/*": {
         "origins": FRONTEND_ORIGINS,
-        "allow_headers": "*",
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"]
     }
 })
 
