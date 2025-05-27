@@ -172,13 +172,14 @@ def get_user_profile(user_id):
                     "registration_date": None,
                     "role": "guest"
                 },
-                "guest": True
+                "guest": True,
+                "latest_trial": None
             }), 200
 
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # ✅ Match by google_user_id instead of id
+        # ✅ 1. Fetch user from `users` table
         cursor.execute("""
             SELECT google_user_id AS id, full_name, email, registration_date, role
             FROM users
@@ -189,10 +190,26 @@ def get_user_profile(user_id):
         if not user:
             return jsonify({"success": False, "message": "User not found"}), 404
 
+        # ✅ 2. Fetch latest submitted trial
+        cursor.execute("""
+            SELECT saved_data, result_data, last_updated
+            FROM user_trials
+            WHERE user_id = %s AND is_submitted = TRUE
+            ORDER BY last_updated DESC
+            LIMIT 1
+        """, (user_id,))
+        trial = cursor.fetchone()
+
+        # ✅ 3. Format full profile response
         return jsonify({
             "success": True,
             "user": user,
-            "guest": False
+            "guest": False,
+            "latest_trial": {
+                "saved_data": json.loads(trial["saved_data"]) if trial and trial["saved_data"] else None,
+                "result_data": json.loads(trial["result_data"]) if trial and trial["result_data"] else None,
+                "last_updated": trial["last_updated"].isoformat() if trial else None
+            } if trial else None
         }), 200
 
     except Exception as e:
