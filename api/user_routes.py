@@ -350,4 +350,3 @@ def get_single_user_trial(trial_id):
         if connection and connection.is_connected():
             connection.close()
 
-
