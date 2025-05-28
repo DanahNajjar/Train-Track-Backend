@@ -170,7 +170,8 @@ def get_user_profile(user_id):
                     "full_name": "Guest User",
                     "email": None,
                     "registration_date": None,
-                    "role": "guest"
+                    "role": "guest",
+                    "avatar": None  # ✅ Even guest gets a null avatar
                 },
                 "guest": True,
                 "latest_trial": None
@@ -179,9 +180,9 @@ def get_user_profile(user_id):
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # ✅ 1. Fetch user from `users` table
+        # ✅ 1. Fetch user from `users` table (now includes avatar)
         cursor.execute("""
-            SELECT google_user_id AS id, full_name, email, registration_date, role
+            SELECT google_user_id AS id, full_name, email, registration_date, role, avatar
             FROM users
             WHERE google_user_id = %s
         """, (user_id,))
