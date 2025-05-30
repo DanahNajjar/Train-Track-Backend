@@ -340,22 +340,34 @@ def get_trial_result_by_id(trial_id):
 
         result_data = json.loads(row["result_data"])
 
-        # ✅ Patch into full structure
+        # ✅ If the result already includes recommended_positions, return it directly
+        if "recommended_positions" in result_data:
+            return jsonify({
+                "success": True,
+                "trialData": {
+                    "result_data": {
+                        **result_data,
+                        "should_fetch_companies": True
+                    }
+                }
+            }), 200
+
+        # ⚠️ Else fallback to patch a single position into recommended_positions
+        recommended_position = {
+            "position_name": result_data.get("recommended_position", "Unknown"),
+            "fit_level": result_data.get("fit_level", "Unknown"),
+            "match_score_percentage": result_data.get("match_score_percentage", 0),
+            "subject_fit_percentage": result_data.get("subject_fit_percentage", 0),
+            "technical_skill_fit_percentage": result_data.get("technical_skill_fit_percentage", 0),
+            "non_technical_skill_fit_percentage": result_data.get("non_technical_skill_fit_percentage", 0),
+            "position_id": result_data.get("position_id", 1)  # fallback
+        }
+
         return jsonify({
             "success": True,
             "trialData": {
                 "result_data": {
-                    "recommended_positions": [
-                        {
-                            "position_name": result_data.get("recommended_position", "Unknown"),
-                            "fit_level": result_data.get("fit_level", "Unknown"),
-                            "match_score_percentage": result_data.get("match_score_percentage", 0),
-                            "subject_fit_percentage": result_data.get("subject_fit_percentage", 0),
-                            "technical_skill_fit_percentage": result_data.get("technical_skill_fit_percentage", 0),
-                            "non_technical_skill_fit_percentage": result_data.get("non_technical_skill_fit_percentage", 0),
-                            "position_id": result_data.get("position_id", 1)  # or patch with a fallback
-                        }
-                    ],
+                    "recommended_positions": [recommended_position],
                     "companies": result_data.get("companies", []),
                     "should_fetch_companies": True
                 }
