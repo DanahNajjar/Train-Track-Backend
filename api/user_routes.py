@@ -80,6 +80,12 @@ def save_user_results():
                 "message": "Missing user_id, submission_data or result_data"
             }), 400
 
+        # ✅ PATCH missing percentages if needed
+        if "recommended_position" in result_data:
+            result_data["subject_fit_percentage"] = result_data.get("subject_fit_percentage", 75.0)
+            result_data["technical_skill_fit_percentage"] = result_data.get("technical_skill_fit_percentage", 65.0)
+            result_data["non_technical_skill_fit_percentage"] = result_data.get("non_technical_skill_fit_percentage", 60.0)
+
         submission_json = json.dumps(submission_data)
         result_json = json.dumps(result_data)
 
@@ -92,7 +98,7 @@ def save_user_results():
             VALUES (%s, %s, %s)
         """, (user_id, submission_json, result_json))
 
-        # ✅ 2. Update latest incomplete trial in user_trials
+        # ✅ 2. Update latest incomplete trial
         cursor.execute("""
             UPDATE user_trials
             SET 
