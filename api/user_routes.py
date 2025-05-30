@@ -340,19 +340,7 @@ def get_trial_result_by_id(trial_id):
 
         result_data = json.loads(row["result_data"])
 
-        # ✅ If the result already includes recommended_positions, return it directly
-        if "recommended_positions" in result_data:
-            return jsonify({
-                "success": True,
-                "trialData": {
-                    "result_data": {
-                        **result_data,
-                        "should_fetch_companies": True
-                    }
-                }
-            }), 200
-
-        # ⚠️ Else fallback to patch a single position into recommended_positions
+        # ✅ Build the dynamic recommended_positions list
         recommended_position = {
             "position_name": result_data.get("recommended_position", "Unknown"),
             "fit_level": result_data.get("fit_level", "Unknown"),
@@ -360,7 +348,7 @@ def get_trial_result_by_id(trial_id):
             "subject_fit_percentage": result_data.get("subject_fit_percentage", 0),
             "technical_skill_fit_percentage": result_data.get("technical_skill_fit_percentage", 0),
             "non_technical_skill_fit_percentage": result_data.get("non_technical_skill_fit_percentage", 0),
-            "position_id": result_data.get("position_id", 1)  # fallback
+            "position_id": result_data.get("position_id", 1)
         }
 
         return jsonify({
