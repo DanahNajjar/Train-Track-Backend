@@ -329,7 +329,7 @@ def get_single_user_trial(trial_id):
         cursor = connection.cursor(dictionary=True)
 
         cursor.execute("""
-            SELECT id, saved_data
+            SELECT id, saved_data, result_data
             FROM user_trials
             WHERE id = %s
         """, (trial_id,))
@@ -338,10 +338,12 @@ def get_single_user_trial(trial_id):
         if not trial:
             return jsonify({"success": False, "message": "Trial not found"}), 404
 
-        # ✅ Match the frontend's expected key name: trialData
         return jsonify({
             "success": True,
-            "trialData": json.loads(trial["saved_data"]) if trial["saved_data"] else None
+            "trialData": {
+                "saved_data": json.loads(trial["saved_data"]) if trial["saved_data"] else None,
+                "result_data": json.loads(trial["result_data"]) if trial["result_data"] else None
+            }
         }), 200
 
     except Exception as e:
@@ -351,4 +353,3 @@ def get_single_user_trial(trial_id):
     finally:
         if connection and connection.is_connected():
             connection.close()
-
