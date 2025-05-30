@@ -322,33 +322,49 @@ def get_user_trials(user_id):
             connection.close()
 # ✅ New: Fetch one trial by ID (for resume functionality)
 @user_routes.route('/trial/<int:trial_id>', methods=['GET'])
-def get_single_user_trial(trial_id):
+def get_trial_result_by_id(trial_id):
     connection = None
     try:
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
         cursor.execute("""
-            SELECT id, saved_data, result_data
+            SELECT result_data
             FROM user_trials
-            WHERE id = %s
+            WHERE id = %s AND is_submitted = TRUE
         """, (trial_id,))
+        row = cursor.fetchone()
 
-        trial = cursor.fetchone()
-        if not trial:
-            return jsonify({"success": False, "message": "Trial not found"}), 404
+        if not row or not row["result_data"]:
+            return jsonify({"success": False, "message": "No submitted result found"}), 404
 
+        result_data = json.loads(row["result_data"])
+
+        # ✅ Patch into full structure
         return jsonify({
             "success": True,
             "trialData": {
-                "saved_data": json.loads(trial["saved_data"]) if trial["saved_data"] else None,
-                "result_data": json.loads(trial["result_data"]) if trial["result_data"] else None
+                "result_data": {
+                    "recommended_positions": [
+                        {
+                            "position_name": result_data.get("recommended_position", "Unknown"),
+                            "fit_level": result_data.get("fit_level", "Unknown"),
+                            "match_score_percentage": result_data.get("match_score_percentage", 0),
+                            "subject_fit_percentage": result_data.get("subject_fit_percentage", 0),
+                            "technical_skill_fit_percentage": result_data.get("technical_skill_fit_percentage", 0),
+                            "non_technical_skill_fit_percentage": result_data.get("non_technical_skill_fit_percentage", 0),
+                            "position_id": result_data.get("position_id", 1)  # or patch with a fallback
+                        }
+                    ],
+                    "companies": result_data.get("companies", []),
+                    "should_fetch_companies": True
+                }
             }
         }), 200
 
     except Exception as e:
-        current_app.logger.error(f"❌ Error fetching trial: {e}")
-        return jsonify({"success": False, "message": str(e)}), 500
+        current_app.logger.error(f"❌ Error loading trial result: {e}")
+        return jsonify({"success": False, "message": "Server error"}), 500
 
     finally:
         if connection and connection.is_connected():
