@@ -161,6 +161,7 @@ def get_user_results(user_id):
 # ✅ 5. Get User Profile (guest & real)
 @user_routes.route('/profile/<user_id>', methods=['GET'])
 def get_user_profile(user_id):
+    connection = None
     try:
         if user_id.startswith("guest_"):
             return jsonify({
@@ -171,7 +172,7 @@ def get_user_profile(user_id):
                     "email": None,
                     "registration_date": None,
                     "role": "guest",
-                    "avatar": None  # ✅ Even guest gets a null avatar
+                    "avatar": None
                 },
                 "guest": True,
                 "latest_trial": None
@@ -180,7 +181,7 @@ def get_user_profile(user_id):
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # ✅ 1. Fetch user from `users` table (now includes avatar)
+        # ✅ 1. Fetch user info
         cursor.execute("""
             SELECT google_user_id AS id, full_name, email, registration_date, role, avatar
             FROM users
@@ -201,7 +202,7 @@ def get_user_profile(user_id):
         """, (user_id,))
         trial = cursor.fetchone()
 
-        # ✅ 3. Format full profile response
+        # ✅ 3. Return full profile
         return jsonify({
             "success": True,
             "user": user,
@@ -209,7 +210,7 @@ def get_user_profile(user_id):
             "latest_trial": {
                 "saved_data": json.loads(trial["saved_data"]) if trial and trial["saved_data"] else None,
                 "result_data": json.loads(trial["result_data"]) if trial and trial["result_data"] else None,
-                "last_updated": trial["last_updated"].isoformat() if trial else None
+                "last_updated": trial["last_updated"].isoformat() if trial and trial["last_updated"] else None
             } if trial else None
         }), 200
 
@@ -218,7 +219,7 @@ def get_user_profile(user_id):
         return jsonify({"success": False, "message": str(e)}), 500
 
     finally:
-        if 'connection' in locals() and connection and connection.is_connected():
+        if connection and connection.is_connected():
             connection.close()
 
 # ✅ 6. Delete User Result
