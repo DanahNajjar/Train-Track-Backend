@@ -346,25 +346,29 @@ def get_trial_result_by_id(trial_id):
 
         result_data = json.loads(row["result_data"])
 
-        # ✅ Build the dynamic recommended_positions list
-        recommended_position = {
-            "position_name": result_data.get("recommended_position", "Unknown"),
-            "fit_level": result_data.get("fit_level", "Unknown"),
-            "match_score_percentage": result_data.get("match_score_percentage", 0),
-            "subject_fit_percentage": result_data.get("subject_fit_percentage", 0),
-            "technical_skill_fit_percentage": result_data.get("technical_skill_fit_percentage", 0),
-            "non_technical_skill_fit_percentage": result_data.get("non_technical_skill_fit_percentage", 0),
-            "position_id": result_data.get("position_id", 1)
-        }
+        # ✅ Ensure full structure is returned as expected by JS
+        if "recommended_positions" not in result_data:
+            # Patch single flat result into list
+            result_data = {
+                "recommended_positions": [
+                    {
+                        "position_name": result_data.get("recommended_position", "Unknown"),
+                        "fit_level": result_data.get("fit_level", "Unknown"),
+                        "match_score_percentage": result_data.get("match_score_percentage", 0),
+                        "subject_fit_percentage": result_data.get("subject_fit_percentage", 0),
+                        "technical_skill_fit_percentage": result_data.get("technical_skill_fit_percentage", 0),
+                        "non_technical_skill_fit_percentage": result_data.get("non_technical_skill_fit_percentage", 0),
+                        "position_id": result_data.get("position_id", 1)
+                    }
+                ],
+                "companies": result_data.get("companies", []),
+                "should_fetch_companies": True
+            }
 
         return jsonify({
             "success": True,
             "trialData": {
-                "result_data": {
-                    "recommended_positions": [recommended_position],
-                    "companies": result_data.get("companies", []),
-                    "should_fetch_companies": True
-                }
+                "result_data": result_data
             }
         }), 200
 
