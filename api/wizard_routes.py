@@ -281,7 +281,6 @@ def get_advanced_preferences():
         if connection.is_connected():
             cursor.close()
             connection.close()
-            
 @wizard_routes.route('/submit', methods=['POST'])
 def submit_wizard():
     connection = None  # ✅ Prevent UnboundLocalError
@@ -335,7 +334,7 @@ def submit_wizard():
                 VALUES (%s, %s)
             """, (submission_id, nontech_id))
 
-        # ✅ Save advanced preferences (now using correct plural keys)
+        # ✅ Save advanced preferences (column names fixed to match database)
         training_mode = (advanced_preferences.get('training_modes') or [None])[0]
         company_size = (advanced_preferences.get('company_sizes') or [None])[0]
         company_culture = (
@@ -349,7 +348,7 @@ def submit_wizard():
 
         cursor.execute("""
             INSERT INTO wizard_submission_advanced_preferences (
-                submission_id, training_mode, company_size, company_culture, preferred_industry
+                submission_id, training_mode_id, company_size_id, company_culture_ids, preferred_industry_ids
             ) VALUES (%s, %s, %s, %s, %s)
         """, (submission_id, training_mode, company_size, company_culture, preferred_industry))
 
