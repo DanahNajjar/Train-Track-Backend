@@ -903,7 +903,7 @@ def resume_trial():
     try:
         data = request.get_json()
         trial_id = data.get("trial_id")
-        print("🔍 Received trial_id:", trial_id)
+        print("📥 Requested resume for trial_id:", trial_id)
 
         if not trial_id:
             return jsonify({"success": False, "message": "Missing trial ID"}), 400
@@ -911,7 +911,7 @@ def resume_trial():
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # ✅ Step 1: Fetch main wizard submission
+        # ✅ Fetch main trial info
         cursor.execute("""
             SELECT id, full_name, gender, major_id, date_of_birth, user_id
             FROM wizard_submissions
@@ -919,48 +919,51 @@ def resume_trial():
         """, (trial_id,))
         wizard = cursor.fetchone()
 
-        print("🧠 wizard data:", wizard)
-
         if not wizard:
             return jsonify({"success": False, "message": "Trial not found"}), 404
 
-        # ✅ Step 2: Selections
-        cursor.execute("SELECT prerequisite_id FROM wizard_submission_subjects WHERE submission_id = %s", (trial_id,))
-        subjects = [row["prerequisite_id"] for row in cursor.fetchall()]
-
-        cursor.execute("SELECT prerequisite_id FROM wizard_submission_technical_skills WHERE submission_id = %s", (trial_id,))
-        tech_skills = [row["prerequisite_id"] for row in cursor.fetchall()]
-
-        cursor.execute("SELECT prerequisite_id FROM wizard_submission_nontechnical_skills WHERE submission_id = %s", (trial_id,))
-        non_tech_skills = [row["prerequisite_id"] for row in cursor.fetchall()]
-
-        # ✅ Step 3: Advanced Preferences — use correct columns!
+        # ✅ Fetch selected subjects
         cursor.execute("""
-            SELECT training_mode, company_size, preferred_industry, company_culture
-            FROM wizard_submission_advanced_preferences
+            SELECT prerequisite_id
+            FROM wizard_submissions_subjects
+            WHERE submission_id = %s
+        """, (trial_id,))
+        subject_rows = cursor.fetchall()
+        subject_ids = [row["prerequisite_id"] for row in subject_rows]
+
+        # ✅ Fetch selected technical skills
+        cursor.execute("""
+            SELECT prerequisite_id
+            FROM wizard_submissions_skills
+            WHERE submission_id = %s AND type = 'Technical Skill'
+        """, (trial_id,))
+        tech_rows = cursor.fetchall()
+        tech_ids = [row["prerequisite_id"] for row in tech_rows]
+
+        # ✅ Fetch selected non-technical skills
+        cursor.execute("""
+            SELECT prerequisite_id
+            FROM wizard_submissions_skills
+            WHERE submission_id = %s AND type = 'Non-Technical Skill'
+        """, (trial_id,))
+        nontech_rows = cursor.fetchall()
+        nontech_ids = [row["prerequisite_id"] for row in nontech_rows]
+
+        # ✅ Fetch preferences
+        cursor.execute("""
+            SELECT training_mode, company_size, company_culture, preferred_industry
+            FROM wizard_submissions_preferences
             WHERE submission_id = %s
         """, (trial_id,))
         pref_row = cursor.fetchone()
 
-        preferences = {
-            "training_modes": [pref_row["training_mode"]] if pref_row and pref_row["training_mode"] else [],
-            "company_sizes": [pref_row["company_size"]] if pref_row and pref_row["company_size"] else [],
-            "preferred_industry_ids": json.loads(pref_row["preferred_industry"] or "[]") if pref_row else [],
-            "company_culture": json.loads(pref_row["company_culture"] or "[]") if pref_row else []
-        }
-
-        # ✅ Step 4: Final structure
+        # ✅ Format result
         response_data = {
-            "trial_id": trial_id,
-            "full_name": wizard["full_name"],
-            "gender": wizard["gender"],
-            "major_id": wizard["major_id"],
-            "date_of_birth": wizard["date_of_birth"].isoformat() if wizard["date_of_birth"] else None,
-            "user_id": wizard["user_id"],
-            "subjects": subjects,
-            "technical_skills": tech_skills,
-            "non_technical_skills": non_tech_skills,
-            "advanced_preferences": preferences
+            "user": wizard,
+            "subjects": subject_ids,
+            "technical_skills": tech_ids,
+            "non_technical_skills": nontech_ids,
+            "advanced_preferences": pref_row or {}
         }
 
         return jsonify({"success": True, "data": response_data}), 200
