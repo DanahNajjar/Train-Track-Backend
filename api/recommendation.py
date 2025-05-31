@@ -899,40 +899,48 @@ def get_company_details(company_id):
     return jsonify({"success": True, "company": company})
 
 @recommendation_routes.route('/trial-resume', methods=['POST'])
-def trial_resume():
-    from database import mysql
-    data = request.get_json()
-    trial_id = data.get('trial_id')
-
-    if not trial_id:
-        return jsonify({"success": False, "message": "Trial ID is required."}), 400
-
+def resume_trial():
     try:
-        cursor = mysql.connection.cursor()
+        data = request.get_json()
+        trial_id = data.get("trial_id")
 
-        # Get basic info
-        cursor.execute("SELECT submission_data FROM wizard_submissions WHERE id = %s", (trial_id,))
-        row = cursor.fetchone()
-        if not row:
-            return jsonify({"success": False, "message": "Trial not found."}), 404
+        if not trial_id:
+            return jsonify({"success": False, "message": "Missing trial ID"}), 400
 
-        submission_data = json.loads(row[0])
-        last_step = submission_data.get("last_step", "subject")
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
 
-        response_data = {
-            "last_step": last_step,
-            "full_name": submission_data.get("full_name"),
-            "gender": submission_data.get("gender"),
-            "major": submission_data.get("major"),
-            "subject_categories": submission_data.get("subject_categories", []),
-            "selected_subjects": submission_data.get("subjects", []),
-            "technical_skills": submission_data.get("technical_skills", []),
-            "non_technical_skills": submission_data.get("non_technical_skills", []),
-            "advanced_preferences": submission_data.get("advanced_preferences", {})
-        }
+        # ✅ Get basic wizard submission
+        cursor.execute("""
+            SELECT id, full_name, gender, major_id, user_id
+            FROM wizard_submissions
+            WHERE id = %s
+        """, (trial_id,))
+        wizard = cursor.fetchone()
 
-        return jsonify({"success": True, "data": response_data})
-    
+        if not wizard:
+            return jsonify({"success": False, "message": "Trial not found"}), 404
+
+        # ✅ You can optionally query last completed step from your other tables
+        # Here we hardcode it for now (e.g., resume at "technical" step)
+        last_step = "technical"
+
+        # ✅ Final response
+        return jsonify({
+            "success": True,
+            "data": {
+                "full_name": wizard["full_name"],
+                "gender": wizard["gender"],
+                "major": wizard["major_id"],
+                "last_step": last_step
+            }
+        }), 200
+
     except Exception as e:
-        print("Resume Trial Error:", str(e))
-        return jsonify({"success": False, "message": "Error resuming trial."}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "message": str(e)}), 500
+
+    finally:
+        if 'connection' in locals() and connection.is_connected():
+            connection.close()
