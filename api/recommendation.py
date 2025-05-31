@@ -229,7 +229,7 @@ def get_recommendations():
     finally:
         if 'connection' in locals() and connection.is_connected():
             connection.close()
-            
+
 @recommendation_routes.route('/companies-for-positions', methods=['GET'])
 def get_companies_for_positions():
     try:
@@ -681,7 +681,7 @@ def get_prerequisite_names():
         if connection and connection.is_connected():
             connection.close()
 
-@recommendation_routes.route('/recommendations/fallback-test', methods=['GET'])
+@recommendation_routes.route('/fallback-test', methods=['GET'])
 def fallback_test():
     return jsonify({"success": True, "message": "Fallback test works ✅"}), 200
             
