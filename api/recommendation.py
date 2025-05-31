@@ -901,6 +901,7 @@ def get_company_details(company_id):
 @recommendation_routes.route('/trial-resume', methods=['POST'])
 def resume_trial():
     try:
+        print("🧪 DEBUG: Running /trial-resume endpoint")
         data = request.get_json()
         trial_id = data.get("trial_id")
         print("📩 Received trial_id:", trial_id)
@@ -911,15 +912,13 @@ def resume_trial():
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # 🔍 Fetch wizard submission by ID
         cursor.execute("SELECT * FROM wizard_submissions WHERE id = %s", (trial_id,))
         wizard = cursor.fetchone()
-        print("🧠 Wizard Data:", wizard)
+        print("🧠 Wizard record:", wizard)
 
         if not wizard:
             return jsonify({"success": False, "message": "Trial not found"}), 404
 
-        # ✅ Return debug only (just for testing)
         return jsonify({"success": True, "debug": wizard}), 200
 
     except Exception as e:
