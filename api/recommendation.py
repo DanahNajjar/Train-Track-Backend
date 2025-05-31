@@ -911,7 +911,7 @@ def resume_trial():
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # 🔎 Step 1: Basic wizard info
+        # Step 1: Basic info
         cursor.execute("""
             SELECT id, full_name, gender, major_id, date_of_birth, user_id
             FROM wizard_submissions
@@ -923,24 +923,23 @@ def resume_trial():
         if not wizard:
             return jsonify({"success": False, "message": "Trial not found"}), 404
 
-        # 🔁 Step 2: Load Selections
-        cursor.execute("SELECT prerequisite_id FROM wizard_submission_subjects WHERE submission_id = %s", (trial_id,))
-        subjects = [row["prerequisite_id"] for row in cursor.fetchall()]
+        # Step 2: Selections (use correct column names)
+        cursor.execute("SELECT subject_id FROM wizard_submission_subjects WHERE submission_id = %s", (trial_id,))
+        subjects = [row["subject_id"] for row in cursor.fetchall()]
 
-        cursor.execute("SELECT prerequisite_id FROM wizard_submission_technical_skills WHERE submission_id = %s", (trial_id,))
-        tech_skills = [row["prerequisite_id"] for row in cursor.fetchall()]
+        cursor.execute("SELECT skill_id FROM wizard_submission_technical_skills WHERE submission_id = %s", (trial_id,))
+        tech_skills = [row["skill_id"] for row in cursor.fetchall()]
 
-        cursor.execute("SELECT prerequisite_id FROM wizard_submission_nontechnical_skills WHERE submission_id = %s", (trial_id,))
-        non_tech_skills = [row["prerequisite_id"] for row in cursor.fetchall()]
+        cursor.execute("SELECT nontech_skill_id FROM wizard_submission_nontechnical_skills WHERE submission_id = %s", (trial_id,))
+        non_tech_skills = [row["nontech_skill_id"] for row in cursor.fetchall()]
 
-        # 🔁 Step 3: Load Advanced Preferences
+        # Step 3: Advanced preferences
         cursor.execute("""
             SELECT training_mode_id, company_size_id, preferred_industry_ids, company_culture_ids
             FROM wizard_submission_advanced_preferences
             WHERE wizard_submission_id = %s
         """, (trial_id,))
         pref_row = cursor.fetchone()
-
         preferences = {
             "training_modes": [pref_row["training_mode_id"]] if pref_row and pref_row["training_mode_id"] else [],
             "company_sizes": [pref_row["company_size_id"]] if pref_row and pref_row["company_size_id"] else [],
@@ -948,9 +947,9 @@ def resume_trial():
             "company_culture": json.loads(pref_row["company_culture_ids"] or "[]") if pref_row else []
         }
 
-        # ✅ Final Response Structure
+        # Step 4: Response structure
         response_data = {
-            "trial_id": wizard["id"],
+            "trial_id": trial_id,
             "full_name": wizard["full_name"],
             "gender": wizard["gender"],
             "major_id": wizard["major_id"],
