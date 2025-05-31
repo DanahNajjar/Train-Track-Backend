@@ -897,3 +897,47 @@ def get_company_details(company_id):
     company["logo_filename"] = f"{safe_name}.png"
 
     return jsonify({"success": True, "company": company})
+@recommendation_bp.route("/results", methods=["POST"])
+@cross_origin()
+def save_recommendation_result():
+    data = request.get_json()
+
+    user_id = data.get("user_id")
+    result_data = data.get("result_data")
+
+    if not user_id or not result_data:
+        return jsonify({"success": False, "error": "Missing user_id or result_data"}), 400
+
+    conn = mysql.connection
+    cursor = conn.cursor()
+
+    try:
+        # ✅ 1. Insert into user_results
+        result_json = json.dumps(result_data)
+        cursor.execute("""
+            INSERT INTO user_results (user_id, result_data)
+            VALUES (%s, %s)
+        """, (user_id, result_json))
+        conn.commit()
+
+        # ✅ 2. Always insert into user_trials (for timeline/profile view)
+        cursor.execute("""
+            INSERT INTO user_trials (user_id, status_class, status_label, result_data, is_submitted)
+            VALUES (%s, %s, %s, %s, TRUE)
+        """, (
+            user_id,
+            'completed',
+            'Completed',
+            result_json
+        ))
+        conn.commit()
+
+        return jsonify({"success": True, "message": "Result and trial saved successfully."})
+
+    except Exception as e:
+        print("❌ Error saving result:", e)
+        conn.rollback()
+        return jsonify({"success": False, "error": "Error saving result"}), 500
+
+    finally:
+        cursor.close()
