@@ -283,7 +283,7 @@ def get_advanced_preferences():
             connection.close()
 @wizard_routes.route('/submit', methods=['POST'])
 def submit_wizard():
-    connection = None  # ✅ Prevent UnboundLocalError
+    connection = None
     try:
         data = request.get_json()
 
@@ -334,14 +334,14 @@ def submit_wizard():
                 VALUES (%s, %s)
             """, (submission_id, nontech_id))
 
-        # ✅ Save advanced preferences (column names fixed to match database)
-        training_mode = (advanced_preferences.get('training_modes') or [None])[0]
-        company_size = (advanced_preferences.get('company_sizes') or [None])[0]
-        company_culture = (
-            ','.join(map(str, advanced_preferences.get('company_culture', []))) 
+        # ✅ Save advanced preferences using correct column names
+        training_mode_id = (advanced_preferences.get('training_modes') or [None])[0]
+        company_size_id = (advanced_preferences.get('company_sizes') or [None])[0]
+        company_culture_ids = (
+            ','.join(map(str, advanced_preferences.get('company_culture', [])))
             if advanced_preferences.get('company_culture') else None
         )
-        preferred_industry = (
+        preferred_industry_ids = (
             ','.join(map(str, advanced_preferences.get('industries', [])))
             if advanced_preferences.get('industries') else None
         )
@@ -350,7 +350,7 @@ def submit_wizard():
             INSERT INTO wizard_submission_advanced_preferences (
                 submission_id, training_mode_id, company_size_id, company_culture_ids, preferred_industry_ids
             ) VALUES (%s, %s, %s, %s, %s)
-        """, (submission_id, training_mode, company_size, company_culture, preferred_industry))
+        """, (submission_id, training_mode_id, company_size_id, company_culture_ids, preferred_industry_ids))
 
         # ✅ Commit changes
         connection.commit()
