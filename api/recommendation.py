@@ -156,6 +156,14 @@ def get_recommendations():
             fit_level = get_fit_level(matched_weight, base)
             visual_score = round(min((matched_weight / base / 1.5) * 100, 100), 2)
 
+            # 🐛 Debug output
+            print("📊 DEBUG FOR POSITION:", pid)
+            print("▶️ Position Name:", pos["position_name"])
+            print("Subjects: Matched", matched_counts["subjects"], "/", len(pos["subjects"]))
+            print("Tech:     Matched", matched_counts["technical_skills"], "/", len(pos["technical_skills"]))
+            print("Non-Tech: Matched", matched_counts["non_technical_skills"], "/", len(pos["non_technical_skills"]))
+            print("-----------")
+
             results.append({
                 "fit_level": fit_level,
                 "match_score_percentage": visual_score,
@@ -179,46 +187,81 @@ def get_recommendations():
         no_matches = [r for r in results if r["fit_level"] == "No Match"]
 
         recommendation_result = {
-            "recommended_positions": results,
+            "results": results,
             "fallback_triggered": bool(fallbacks),
             "preferences_used": has_preferences,
             "filters": company_filter_ids
         }
 
-        # ✅ Save to user_results table
-        cursor.execute("""
-            INSERT INTO user_results (user_id, submission_data, result_data)
-            VALUES (%s, %s, %s)
-        """, (
-            user_id,
-            json.dumps(data),
-            json.dumps(recommendation_result)
-        ))
-        connection.commit()
+        try:
+            cursor.execute("""
+                INSERT INTO user_results (user_id, submission_data, result_data)
+                VALUES (%s, %s, %s)
+            """, (
+                user_id,
+                json.dumps(data),
+                json.dumps(recommendation_result)
+            ))
+            connection.commit()
+            current_app.logger.info("📏 Trial saved to user_results.")
+        except Exception as save_err:
+            current_app.logger.error(f"❌ Failed to save result: {save_err}")
 
-        # ✅ Also save to user_trials table (for profile display)
-        cursor.execute("""
-            INSERT INTO user_trials (user_id, status_class, status_label, result_data, is_submitted)
-            VALUES (%s, %s, %s, %s, TRUE)
-        """, (
-            user_id,
-            'completed',
-            'Completed',
-            json.dumps(recommendation_result)
-        ))
-        connection.commit()
+        if perfect_matches:
+            return jsonify({
+                "success": True,
+                "fallback_possible": False,
+                "fallback_triggered": False,
+                "was_fallback_promoted": False,
+                "recommended_positions": [perfect_matches[0]],
+                "should_fetch_companies": has_preferences,
+                "company_filter_ids": company_filter_ids
+            }), 200
+
+        elif strong_matches:
+            return jsonify({
+                "success": True,
+                "fallback_possible": False,
+                "fallback_triggered": False,
+                "was_fallback_promoted": False,
+                "recommended_positions": strong_matches,
+                "should_fetch_companies": has_preferences,
+                "company_filter_ids": company_filter_ids
+            }), 200
+
+        elif fallbacks:
+            return jsonify({
+                "success": True,
+                "fallback_possible": True,
+                "fallback_triggered": True,
+                "was_fallback_promoted": is_fallback and any(
+                    r["position_id"] in previous_fallback_ids and r["fit_level"] != "Fallback"
+                    for r in results),
+                "recommended_positions": fallbacks,
+                "should_fetch_companies": has_preferences or is_fallback,
+                "company_filter_ids": company_filter_ids
+            }), 200
+
+        elif no_matches:
+            return jsonify({
+                "success": True,
+                "fallback_possible": False,
+                "fallback_triggered": False,
+                "was_fallback_promoted": False,
+                "recommended_positions": no_matches,
+                "should_fetch_companies": has_preferences,
+                "company_filter_ids": company_filter_ids
+            }), 200
 
         return jsonify({
             "success": True,
-            "recommended_positions": results,
-            "fallback_possible": bool(fallbacks),
-            "fallback_triggered": bool(fallbacks),
-            "was_fallback_promoted": is_fallback and any(
-                r["position_id"] in previous_fallback_ids and r["fit_level"] != "Fallback"
-                for r in results),
+            "fallback_possible": False,
+            "fallback_triggered": False,
+            "was_fallback_promoted": False,
+            "recommended_positions": [],
             "should_fetch_companies": has_preferences,
             "company_filter_ids": company_filter_ids
-        })
+        }), 200
 
     except Exception as e:
         import traceback
@@ -483,7 +526,7 @@ def user_input_summary():
             cursor.close()
             connection.close()
 
-@recommendation_routes.route('/fallback-prerequisites', methods=['POST', 'OPTIONS'])
+@recommendation_routes.route('/recommendations/fallback-prerequisites', methods=['POST', 'OPTIONS'])
 def get_fallback_prerequisites():
     if request.method == 'OPTIONS':
         # ✅ Handle CORS preflight (for browser security policy)
@@ -681,7 +724,7 @@ def get_prerequisite_names():
         if connection and connection.is_connected():
             connection.close()
 
-@recommendation_routes.route('/fallback-test', methods=['GET'])
+@recommendation_routes.route('/recommendations/fallback-test', methods=['GET'])
 def fallback_test():
     return jsonify({"success": True, "message": "Fallback test works ✅"}), 200
             
