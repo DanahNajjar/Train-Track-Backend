@@ -911,31 +911,30 @@ def resume_trial():
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # Step 1: Get basic trial info
+        # ✅ Step 1: Fetch main wizard submission
         cursor.execute("""
             SELECT id, full_name, gender, major_id, date_of_birth, user_id
             FROM wizard_submissions
             WHERE id = %s
         """, (trial_id,))
         wizard = cursor.fetchone()
+
         print("🧠 wizard data:", wizard)
 
         if not wizard:
             return jsonify({"success": False, "message": "Trial not found"}), 404
 
-        # Step 2: Load subject selections
+        # ✅ Step 2: Selections
         cursor.execute("SELECT prerequisite_id FROM wizard_submission_subjects WHERE submission_id = %s", (trial_id,))
         subjects = [row["prerequisite_id"] for row in cursor.fetchall()]
 
-        # Step 3: Load technical skills
         cursor.execute("SELECT prerequisite_id FROM wizard_submission_technical_skills WHERE submission_id = %s", (trial_id,))
         tech_skills = [row["prerequisite_id"] for row in cursor.fetchall()]
 
-        # Step 4: Load non-technical skills
         cursor.execute("SELECT prerequisite_id FROM wizard_submission_nontechnical_skills WHERE submission_id = %s", (trial_id,))
         non_tech_skills = [row["prerequisite_id"] for row in cursor.fetchall()]
 
-        # Step 5: Load advanced preferences
+        # ✅ Step 3: Advanced Preferences — use correct columns!
         cursor.execute("""
             SELECT training_mode, company_size, preferred_industry, company_culture
             FROM wizard_submission_advanced_preferences
@@ -950,7 +949,7 @@ def resume_trial():
             "company_culture": json.loads(pref_row["company_culture"] or "[]") if pref_row else []
         }
 
-        # Final response structure
+        # ✅ Step 4: Final structure
         response_data = {
             "trial_id": trial_id,
             "full_name": wizard["full_name"],
