@@ -901,10 +901,8 @@ def get_company_details(company_id):
 @recommendation_routes.route('/trial-resume', methods=['POST'])
 def resume_trial():
     try:
-        print("🧪 DEBUG: Running /trial-resume endpoint")
         data = request.get_json()
         trial_id = data.get("trial_id")
-        print("📩 Received trial_id:", trial_id)
 
         if not trial_id:
             return jsonify({"success": False, "message": "Missing trial ID"}), 400
@@ -912,14 +910,31 @@ def resume_trial():
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        cursor.execute("SELECT * FROM wizard_submissions WHERE id = %s", (trial_id,))
+        # ✅ Get basic wizard submission
+        cursor.execute("""
+            SELECT id, full_name, gender, major_id, user_id
+            FROM wizard_submissions
+            WHERE id = %s
+        """, (trial_id,))
         wizard = cursor.fetchone()
-        print("🧠 Wizard record:", wizard)
 
         if not wizard:
             return jsonify({"success": False, "message": "Trial not found"}), 404
 
-        return jsonify({"success": True, "debug": wizard}), 200
+        # ✅ You can optionally query last completed step from your other tables
+        # Here we hardcode it for now (e.g., resume at "technical" step)
+        last_step = "technical"
+
+        # ✅ Final response
+        return jsonify({
+            "success": True,
+            "data": {
+                "full_name": wizard["full_name"],
+                "gender": wizard["gender"],
+                "major": wizard["major_id"],
+                "last_step": last_step
+            }
+        }), 200
 
     except Exception as e:
         import traceback
