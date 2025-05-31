@@ -47,7 +47,7 @@ def handle_preflight():
             "Access-Control-Request-Headers", "Content-Type"
         )
         response.headers["Access-Control-Allow-Credentials"] = "true"
-        return response
+        return response, 204  
 
 # ✅ Register routes
 from api.user_routes import user_routes
