@@ -897,3 +897,42 @@ def get_company_details(company_id):
     company["logo_filename"] = f"{safe_name}.png"
 
     return jsonify({"success": True, "company": company})
+
+@recommendation_routes.route('/trial-resume', methods=['POST'])
+def resume_trial():
+    try:
+        data = request.get_json()
+        trial_id = data.get("trial_id")
+        print("🔍 Received trial_id:", trial_id)
+
+        if not trial_id:
+            return jsonify({"success": False, "message": "Missing trial ID"}), 400
+
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        # DEBUG: Check if wizard_submissions row is found
+        cursor.execute("""
+            SELECT id, full_name, gender, major_id, date_of_birth, user_id
+            FROM wizard_submissions
+            WHERE id = %s
+        """, (trial_id,))
+        wizard = cursor.fetchone()
+        print("🧠 wizard data:", wizard)
+
+        if not wizard:
+            return jsonify({"success": False, "message": "Trial not found"}), 404
+
+        # The rest of the logic...
+        # (You can leave it as is — just keep this debug part)
+
+        return jsonify({"success": True, "debug": wizard}), 200
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "message": str(e)}), 500
+
+    finally:
+        if 'connection' in locals() and connection.is_connected():
+            connection.close()
