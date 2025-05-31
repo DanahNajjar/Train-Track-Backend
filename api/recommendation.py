@@ -898,7 +898,7 @@ def get_company_details(company_id):
 
     return jsonify({"success": True, "company": company})
 
-@recommendation_bp.route('/trial-resume', methods=['POST'])
+@recommendation_routes.route('/trial-resume', methods=['POST'])
 def trial_resume():
     from database import mysql
     data = request.get_json()
