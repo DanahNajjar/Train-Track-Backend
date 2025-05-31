@@ -910,29 +910,24 @@ def resume_trial():
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # ✅ Get full submission data (JSON)
-        cursor.execute("SELECT submission_data FROM wizard_submissions WHERE id = %s", (trial_id,))
+        # ✅ Load submission_data from user_results
+        cursor.execute("""
+            SELECT submission_data
+            FROM user_results
+            WHERE id = %s
+        """, (trial_id,))
         row = cursor.fetchone()
+
         if not row:
             return jsonify({"success": False, "message": "Trial not found"}), 404
 
-        submission_data = json.loads(row["submission_data"])
-        last_step = submission_data.get("last_step", "subject")
+        submission_data = row["submission_data"]
+        parsed_data = json.loads(submission_data)
 
-        # ✅ Final response with all fields expected by the frontend
-        response_data = {
-            "full_name": submission_data.get("full_name"),
-            "gender": submission_data.get("gender"),
-            "major": submission_data.get("major"),
-            "last_step": last_step,
-            "subject_categories": submission_data.get("subject_categories", []),
-            "selected_subjects": submission_data.get("subjects", []),
-            "technical_skills": submission_data.get("technical_skills", []),
-            "non_technical_skills": submission_data.get("non_technical_skills", []),
-            "advanced_preferences": submission_data.get("advanced_preferences", {})
-        }
-
-        return jsonify({"success": True, "data": response_data}), 200
+        return jsonify({
+            "success": True,
+            "data": parsed_data
+        }), 200
 
     except Exception as e:
         import traceback
