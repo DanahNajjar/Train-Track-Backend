@@ -290,8 +290,11 @@ def save_user_trial():
         cursor = connection.cursor()
 
         cursor.execute("""
-            INSERT INTO user_trials (user_id, status_class, status_label, saved_data, result_data, is_submitted)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO user_trials (
+                user_id, status_class, status_label,
+                saved_data, result_data, is_submitted, last_updated
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
         """, (
             user_id,
             status_class,
