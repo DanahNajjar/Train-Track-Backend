@@ -911,23 +911,31 @@ def resume_trial():
         cursor = connection.cursor(dictionary=True)
 
         # ✅ Load submission_data from user_results
-        cursor.execute("""
-            SELECT submission_data
-            FROM user_results
-            WHERE id = %s
-        """, (trial_id,))
+        cursor.execute("SELECT submission_data FROM user_results WHERE id = %s", (trial_id,))
         row = cursor.fetchone()
 
         if not row:
             return jsonify({"success": False, "message": "Trial not found"}), 404
 
-        submission_data = row["submission_data"]
-        parsed_data = json.loads(submission_data)
+        submission_data = json.loads(row["submission_data"])
+        subject_ids = submission_data.get("subjects", [])
 
-        return jsonify({
-            "success": True,
-            "data": parsed_data
-        }), 200
+        # ✅ Load subject category names based on those IDs
+        subject_categories = []
+        if subject_ids:
+            format_str = ','.join(['%s'] * len(subject_ids))
+            cursor.execute(f"""
+                SELECT DISTINCT c.name
+                FROM prerequisites p
+                JOIN categories c ON p.category_id = c.id
+                WHERE p.id IN ({format_str}) AND p.type = 'Subject'
+            """, tuple(subject_ids))
+            subject_categories = [row["name"] for row in cursor.fetchall()]
+
+        # ✅ Add categories to the response
+        submission_data["subject_categories"] = subject_categories
+
+        return jsonify({"success": True, "data": submission_data}), 200
 
     except Exception as e:
         import traceback
