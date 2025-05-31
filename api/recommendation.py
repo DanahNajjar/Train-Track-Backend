@@ -911,22 +911,68 @@ def resume_trial():
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # DEBUG: Check if wizard_submissions row is found
+        # Step 1: Fetch wizard basic info
         cursor.execute("""
             SELECT id, full_name, gender, major_id, date_of_birth, user_id
             FROM wizard_submissions
             WHERE id = %s
         """, (trial_id,))
         wizard = cursor.fetchone()
-        print("🧠 wizard data:", wizard)
 
         if not wizard:
             return jsonify({"success": False, "message": "Trial not found"}), 404
 
-        # The rest of the logic...
-        # (You can leave it as is — just keep this debug part)
+        # Step 2: Get selections
+        cursor.execute("SELECT prerequisite_id FROM wizard_submission_subjects WHERE submission_id = %s", (trial_id,))
+        subjects = [row["prerequisite_id"] for row in cursor.fetchall()]
 
-        return jsonify({"success": True, "debug": wizard}), 200
+        cursor.execute("SELECT prerequisite_id FROM wizard_submission_technical_skills WHERE submission_id = %s", (trial_id,))
+        tech_skills = [row["prerequisite_id"] for row in cursor.fetchall()]
+
+        cursor.execute("SELECT prerequisite_id FROM wizard_submission_nontechnical_skills WHERE submission_id = %s", (trial_id,))
+        non_tech_skills = [row["prerequisite_id"] for row in cursor.fetchall()]
+
+        cursor.execute("""
+            SELECT training_mode_id, company_size_id, preferred_industry_ids, company_culture_ids
+            FROM wizard_submission_advanced_preferences
+            WHERE wizard_submission_id = %s
+        """, (trial_id,))
+        pref_row = cursor.fetchone()
+        preferences = {
+            "training_modes": [pref_row["training_mode_id"]] if pref_row and pref_row["training_mode_id"] else [],
+            "company_sizes": [pref_row["company_size_id"]] if pref_row and pref_row["company_size_id"] else [],
+            "preferred_industry_ids": json.loads(pref_row["preferred_industry_ids"] or "[]") if pref_row else [],
+            "company_culture": json.loads(pref_row["company_culture_ids"] or "[]") if pref_row else []
+        }
+
+        # Step 3: Determine last completed step
+        if subjects and not tech_skills:
+            last_step = "subject2"
+        elif tech_skills and not non_tech_skills:
+            last_step = "technical"
+        elif non_tech_skills and not preferences["training_modes"] and not preferences["company_sizes"]:
+            last_step = "nontechnical"
+        elif preferences["training_modes"] or preferences["company_sizes"]:
+            last_step = "advancepreferences"
+        else:
+            last_step = "subject"
+
+        # Step 4: Response object
+        response_data = {
+            "trial_id": trial_id,
+            "full_name": wizard["full_name"],
+            "gender": wizard["gender"],
+            "major_id": wizard["major_id"],
+            "date_of_birth": wizard["date_of_birth"].isoformat() if wizard["date_of_birth"] else None,
+            "user_id": wizard["user_id"],
+            "subjects": subjects,
+            "technical_skills": tech_skills,
+            "non_technical_skills": non_tech_skills,
+            "advanced_preferences": preferences,
+            "last_step": last_step  # ✅ key for frontend redirect
+        }
+
+        return jsonify({"success": True, "data": response_data}), 200
 
     except Exception as e:
         import traceback
