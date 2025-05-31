@@ -903,7 +903,7 @@ def resume_trial():
     try:
         data = request.get_json()
         trial_id = data.get("trial_id")
-        print("📥 Requested resume for trial_id:", trial_id)
+        print("📩 Received trial_id:", trial_id)
 
         if not trial_id:
             return jsonify({"success": False, "message": "Missing trial ID"}), 400
@@ -911,62 +911,16 @@ def resume_trial():
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # ✅ Fetch main trial info
-        cursor.execute("""
-            SELECT id, full_name, gender, major_id, date_of_birth, user_id
-            FROM wizard_submissions
-            WHERE id = %s
-        """, (trial_id,))
+        # 🔍 Fetch wizard submission by ID
+        cursor.execute("SELECT * FROM wizard_submissions WHERE id = %s", (trial_id,))
         wizard = cursor.fetchone()
+        print("🧠 Wizard Data:", wizard)
 
         if not wizard:
             return jsonify({"success": False, "message": "Trial not found"}), 404
 
-        # ✅ Fetch selected subjects
-        cursor.execute("""
-            SELECT prerequisite_id
-            FROM wizard_submissions_subjects
-            WHERE submission_id = %s
-        """, (trial_id,))
-        subject_rows = cursor.fetchall()
-        subject_ids = [row["prerequisite_id"] for row in subject_rows]
-
-        # ✅ Fetch selected technical skills
-        cursor.execute("""
-            SELECT prerequisite_id
-            FROM wizard_submissions_skills
-            WHERE submission_id = %s AND type = 'Technical Skill'
-        """, (trial_id,))
-        tech_rows = cursor.fetchall()
-        tech_ids = [row["prerequisite_id"] for row in tech_rows]
-
-        # ✅ Fetch selected non-technical skills
-        cursor.execute("""
-            SELECT prerequisite_id
-            FROM wizard_submissions_skills
-            WHERE submission_id = %s AND type = 'Non-Technical Skill'
-        """, (trial_id,))
-        nontech_rows = cursor.fetchall()
-        nontech_ids = [row["prerequisite_id"] for row in nontech_rows]
-
-        # ✅ Fetch preferences
-        cursor.execute("""
-            SELECT training_mode, company_size, company_culture, preferred_industry
-            FROM wizard_submissions_preferences
-            WHERE submission_id = %s
-        """, (trial_id,))
-        pref_row = cursor.fetchone()
-
-        # ✅ Format result
-        response_data = {
-            "user": wizard,
-            "subjects": subject_ids,
-            "technical_skills": tech_ids,
-            "non_technical_skills": nontech_ids,
-            "advanced_preferences": pref_row or {}
-        }
-
-        return jsonify({"success": True, "data": response_data}), 200
+        # ✅ Return debug only (just for testing)
+        return jsonify({"success": True, "debug": wizard}), 200
 
     except Exception as e:
         import traceback
