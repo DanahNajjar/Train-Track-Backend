@@ -92,13 +92,13 @@ def save_user_results():
         connection = get_db_connection()
         cursor = connection.cursor()
 
-        # ✅ 1. Save to user_results
+        # ✅ 1. Save to user_results (for archive)
         cursor.execute("""
             INSERT INTO user_results (user_id, submission_data, result_data)
             VALUES (%s, %s, %s)
         """, (user_id, submission_json, result_json))
 
-        # ✅ 2. Update latest incomplete trial
+        # ✅ 2. Try to update latest incomplete trial
         cursor.execute("""
             UPDATE user_trials
             SET 
@@ -117,11 +117,23 @@ def save_user_results():
             user_id
         ))
 
+        # ✅ 3. If no row updated → insert new trial
+        if cursor.rowcount == 0:
+            cursor.execute("""
+                INSERT INTO user_trials (user_id, status_class, status_label, result_data, is_submitted)
+                VALUES (%s, %s, %s, %s, TRUE)
+            """, (
+                user_id,
+                'completed',
+                'Completed',
+                result_json
+            ))
+
         connection.commit()
 
         return jsonify({
             "success": True,
-            "message": "✅ Result saved successfully and trial updated"
+            "message": "✅ Result saved successfully and trial recorded"
         }), 200
 
     except Exception as e:
