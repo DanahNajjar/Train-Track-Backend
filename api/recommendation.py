@@ -911,18 +911,19 @@ def resume_trial():
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # Step 1: Fetch wizard basic info
+        # 🔎 Step 1: Basic wizard info
         cursor.execute("""
             SELECT id, full_name, gender, major_id, date_of_birth, user_id
             FROM wizard_submissions
             WHERE id = %s
         """, (trial_id,))
         wizard = cursor.fetchone()
+        print("🧠 wizard data:", wizard)
 
         if not wizard:
             return jsonify({"success": False, "message": "Trial not found"}), 404
 
-        # Step 2: Get selections
+        # 🔁 Step 2: Load Selections
         cursor.execute("SELECT prerequisite_id FROM wizard_submission_subjects WHERE submission_id = %s", (trial_id,))
         subjects = [row["prerequisite_id"] for row in cursor.fetchall()]
 
@@ -932,12 +933,14 @@ def resume_trial():
         cursor.execute("SELECT prerequisite_id FROM wizard_submission_nontechnical_skills WHERE submission_id = %s", (trial_id,))
         non_tech_skills = [row["prerequisite_id"] for row in cursor.fetchall()]
 
+        # 🔁 Step 3: Load Advanced Preferences
         cursor.execute("""
             SELECT training_mode_id, company_size_id, preferred_industry_ids, company_culture_ids
             FROM wizard_submission_advanced_preferences
             WHERE wizard_submission_id = %s
         """, (trial_id,))
         pref_row = cursor.fetchone()
+
         preferences = {
             "training_modes": [pref_row["training_mode_id"]] if pref_row and pref_row["training_mode_id"] else [],
             "company_sizes": [pref_row["company_size_id"]] if pref_row and pref_row["company_size_id"] else [],
@@ -945,21 +948,9 @@ def resume_trial():
             "company_culture": json.loads(pref_row["company_culture_ids"] or "[]") if pref_row else []
         }
 
-        # Step 3: Determine last completed step
-        if subjects and not tech_skills:
-            last_step = "subject2"
-        elif tech_skills and not non_tech_skills:
-            last_step = "technical"
-        elif non_tech_skills and not preferences["training_modes"] and not preferences["company_sizes"]:
-            last_step = "nontechnical"
-        elif preferences["training_modes"] or preferences["company_sizes"]:
-            last_step = "advancepreferences"
-        else:
-            last_step = "subject"
-
-        # Step 4: Response object
+        # ✅ Final Response Structure
         response_data = {
-            "trial_id": trial_id,
+            "trial_id": wizard["id"],
             "full_name": wizard["full_name"],
             "gender": wizard["gender"],
             "major_id": wizard["major_id"],
@@ -968,8 +959,7 @@ def resume_trial():
             "subjects": subjects,
             "technical_skills": tech_skills,
             "non_technical_skills": non_tech_skills,
-            "advanced_preferences": preferences,
-            "last_step": last_step  # ✅ key for frontend redirect
+            "advanced_preferences": preferences
         }
 
         return jsonify({"success": True, "data": response_data}), 200
