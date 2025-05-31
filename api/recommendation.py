@@ -910,31 +910,29 @@ def resume_trial():
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # ✅ Get basic wizard submission
-        cursor.execute("""
-            SELECT id, full_name, gender, major_id, user_id
-            FROM wizard_submissions
-            WHERE id = %s
-        """, (trial_id,))
-        wizard = cursor.fetchone()
-
-        if not wizard:
+        # ✅ Get full submission data (JSON)
+        cursor.execute("SELECT submission_data FROM wizard_submissions WHERE id = %s", (trial_id,))
+        row = cursor.fetchone()
+        if not row:
             return jsonify({"success": False, "message": "Trial not found"}), 404
 
-        # ✅ You can optionally query last completed step from your other tables
-        # Here we hardcode it for now (e.g., resume at "technical" step)
-        last_step = "technical"
+        submission_data = json.loads(row["submission_data"])
+        last_step = submission_data.get("last_step", "subject")
 
-        # ✅ Final response
-        return jsonify({
-            "success": True,
-            "data": {
-                "full_name": wizard["full_name"],
-                "gender": wizard["gender"],
-                "major": wizard["major_id"],
-                "last_step": last_step
-            }
-        }), 200
+        # ✅ Final response with all fields expected by the frontend
+        response_data = {
+            "full_name": submission_data.get("full_name"),
+            "gender": submission_data.get("gender"),
+            "major": submission_data.get("major"),
+            "last_step": last_step,
+            "subject_categories": submission_data.get("subject_categories", []),
+            "selected_subjects": submission_data.get("subjects", []),
+            "technical_skills": submission_data.get("technical_skills", []),
+            "non_technical_skills": submission_data.get("non_technical_skills", []),
+            "advanced_preferences": submission_data.get("advanced_preferences", {})
+        }
+
+        return jsonify({"success": True, "data": response_data}), 200
 
     except Exception as e:
         import traceback
